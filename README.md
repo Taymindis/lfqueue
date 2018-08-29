@@ -67,7 +67,15 @@ sudo make install
 
 ```
 
-## Testing 
+## Endless Testing 
+
+For endless testing until interrupt, if you having any issue while testing, please kindly raise an issue
+
+```bash
+
+./keep-testing.sh
+
+```
 
 
 ## Uninstallation
