@@ -80,7 +80,8 @@ inline BOOL __SYNC_BOOL_CAS(LONG volatile *dest, LONG input, LONG comparand) {
 #include "lfqueue.h"
 #define DEF_LFQ_ASSIGNED_SPIN 2048
 
-static lfqueue_cas_node_t* __lfq_assigned(lfqueue_t *);
+//static lfqueue_cas_node_t* __lfq_assigned(lfqueue_t *);
+static void __lfq_recycle_free(lfqueue_t *, lfqueue_cas_node_t*);
 
 static void *
 dequeue_(lfqueue_t *lfqueue) {
@@ -105,14 +106,14 @@ dequeue_(lfqueue_t *lfqueue) {
 			}
 		}
 	}
-
+	__lfq_recycle_free(lfqueue, head);
 	return val;
 }
 
 static int
 enqueue_(lfqueue_t *lfqueue, void* value) {
 	lfqueue_cas_node_t *tail, *node;
-	node = __lfq_assigned(lfqueue);
+	node = malloc(sizeof(lfqueue_cas_node_t));
 	node->value = value;
 	node->next = NULL;
 	for (;;) {
@@ -138,9 +139,13 @@ lfqueue_init(lfqueue_t *lfqueue, size_t queue_sz) {
 	base->next = NULL;
 	lfqueue->head = lfqueue->tail = base;
 	lfqueue->size = 0;
-	lfqueue->cycle = 0;
 	lfqueue->capacity = queue_sz;
-	lfqueue->chain = malloc(queue_sz * sizeof(lfqueue_cas_node_t));
+	lfqueue->recy_node = malloc(queue_sz * sizeof(lfqueue_cas_node_t *));
+	int i;
+	for (i = 0; i < queue_sz; i++) {
+		lfqueue->recy_node[i] = NULL;
+	}
+	lfqueue->recy_pos = 0;
 	
 	//memset(lfqueue->chain, 0, queue_sz * sizeof(lfqueue_cas_node_t));
 	return 0;
@@ -149,10 +154,15 @@ lfqueue_init(lfqueue_t *lfqueue, size_t queue_sz) {
 void
 lfqueue_destroy(lfqueue_t *lfqueue) {
 	void* p;
+	int i;
 	while ((p = lfqueue_deq(lfqueue))) {
 		free(p);
 	}
-	free(lfqueue->chain);
+	// Clear the recycle nodes
+	for (i = 0; i < lfqueue->capacity; i++) {
+		if (lfqueue->recy_node[i])
+			free(lfqueue->recy_node[i]);
+	}
 	lfqueue->size = 0;
 }
 
@@ -188,13 +198,23 @@ size_t
 lfqueue_size(lfqueue_t *lfqueue) {
 	return __LFQ_ADD_AND_FETCH(&lfqueue->size, 0);
 }
-
+/*
 static lfqueue_cas_node_t* 
 __lfq_assigned(lfqueue_t *q) {
 	size_t capacity = q->capacity;
 	lfqueue_cas_node_t *pchain = q->chain;
 	lfqueue_cas_node_t* alloc = pchain + ( __LFQ_FETCH_AND_ADD(&q->cycle, 1) % capacity);	
 	return alloc;
+}*/
+
+static void __lfq_recycle_free(lfqueue_t *q, lfqueue_cas_node_t* freenode) {
+	lfqueue_cas_node_t *p;
+	lfqueue_cas_node_t **rcyn = q->recy_node;
+	int i = __LFQ_FETCH_AND_ADD(&q->recy_pos, 1) % q->capacity;
+	if ((p = __LFQ_VAL_COMPARE_AND_SWAP(rcyn + i, NULL, freenode))) {
+		rcyn[i] = freenode;
+		free(p);
+	}
 }
 
 

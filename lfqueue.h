@@ -48,9 +48,10 @@ typedef struct lfqueue_cas_chain_s {
 } lfqueue_cas_chain_t;
 */
 typedef struct {
-	lfqueue_cas_node_t *head, *tail, *chain;
-	size_t size, cycle;
-	size_t capacity;
+	lfqueue_cas_node_t *head, *tail;
+	size_t size, capacity;
+	unsigned int recy_pos;
+	lfqueue_cas_node_t **recy_node;
 } lfqueue_t;
 
 int   lfqueue_init(lfqueue_t *lfqueue, size_t queue_size);
