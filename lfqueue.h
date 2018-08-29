@@ -41,17 +41,16 @@ typedef struct lfqueue_cas_node_s {
 	void * value;
 	struct lfqueue_cas_node_s *next;
 } lfqueue_cas_node_t;
-
+/*
 typedef struct lfqueue_cas_chain_s {
 	lfqueue_cas_node_t *p;
-	lfqueue_cas_node_t *next;
+	struct lfqueue_cas_chain_s *next;
 } lfqueue_cas_chain_t;
-
+*/
 typedef struct {
-	lfqueue_cas_node_t *head, *tail;
-	size_t size;
+	lfqueue_cas_node_t *head, *tail, *chain;
+	size_t size, cycle;
 	size_t capacity;
-	lfqueue_cas_chain_t *chain, *root;
 } lfqueue_t;
 
 int   lfqueue_init(lfqueue_t *lfqueue, size_t queue_size);
