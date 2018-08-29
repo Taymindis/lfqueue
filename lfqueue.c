@@ -141,7 +141,7 @@ lfqueue_init(lfqueue_t *lfqueue, size_t queue_sz) {
 	lfqueue->head = lfqueue->tail = base;
 	lfqueue->size = 0;
 	lfqueue->capacity = queue_sz;
-	lfqueue->recy_node = malloc(queue_sz * sizeof(lfqueue_cas_node_t *));
+	lfqueue->rt_cyc = lfqueue->recy_node = malloc(queue_sz * sizeof(lfqueue_cas_node_t *));
 	for (i = 0; i < queue_sz; i++) {
 		lfqueue->recy_node[i] = NULL;
 	}
@@ -163,6 +163,7 @@ lfqueue_destroy(lfqueue_t *lfqueue) {
 		if (lfqueue->recy_node[i])
 			free(lfqueue->recy_node[i]);
 	}
+	free(lfqueue->rt_cyc);
 	lfqueue->size = 0;
 }
 
