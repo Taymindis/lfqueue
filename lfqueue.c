@@ -131,6 +131,7 @@ enqueue_(lfqueue_t *lfqueue, void* value) {
 int
 lfqueue_init(lfqueue_t *lfqueue, size_t queue_sz) {
 	// To assume concurrent access * concurrent access at 1 time
+	size_t i;
 	lfqueue_cas_node_t *base = malloc(sizeof(lfqueue_cas_node_t));
 	if (base == NULL) {
 		return errno;
@@ -141,7 +142,6 @@ lfqueue_init(lfqueue_t *lfqueue, size_t queue_sz) {
 	lfqueue->size = 0;
 	lfqueue->capacity = queue_sz;
 	lfqueue->recy_node = malloc(queue_sz * sizeof(lfqueue_cas_node_t *));
-	int i;
 	for (i = 0; i < queue_sz; i++) {
 		lfqueue->recy_node[i] = NULL;
 	}
@@ -154,7 +154,7 @@ lfqueue_init(lfqueue_t *lfqueue, size_t queue_sz) {
 void
 lfqueue_destroy(lfqueue_t *lfqueue) {
 	void* p;
-	int i;
+	size_t i;
 	while ((p = lfqueue_deq(lfqueue))) {
 		free(p);
 	}
