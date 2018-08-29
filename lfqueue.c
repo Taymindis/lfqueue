@@ -130,7 +130,7 @@ enqueue_(lfqueue_t *lfqueue, void* value) {
 int
 lfqueue_init(lfqueue_t *lfqueue, size_t queue_sz) {
 	// To assume concurrent access * concurrent access at 1 time
-	lfqueue_cas_node_t *base = malloc(sizeof(lfqueue_cas_node_t)), *chain;
+	lfqueue_cas_node_t *base = malloc(sizeof(lfqueue_cas_node_t));
 	if (base == NULL) {
 		return errno;
 	}
@@ -140,7 +140,7 @@ lfqueue_init(lfqueue_t *lfqueue, size_t queue_sz) {
 	lfqueue->size = 0;
 	lfqueue->cycle = 0;
 	lfqueue->capacity = queue_sz;
-	chain = lfqueue->chain = malloc(queue_sz * sizeof(lfqueue_cas_node_t));
+	lfqueue->chain = malloc(queue_sz * sizeof(lfqueue_cas_node_t));
 	
 	//memset(lfqueue->chain, 0, queue_sz * sizeof(lfqueue_cas_node_t));
 	return 0;
