@@ -62,10 +62,10 @@ inline BOOL __SYNC_BOOL_CAS(LONG64 volatile *dest, LONG64 input, LONG64 comparan
 #define asm __asm
 #endif
 inline BOOL __SYNC_BOOL_CAS(LONG volatile *dest, LONG input, LONG comparand) {
-    return InterlockedCompareExchangeNoFence64(dest, input, comparand) == comparand;
+    return InterlockedCompareExchangeNoFence(dest, input, comparand) == comparand;
 }
 #define __LFQ_VAL_COMPARE_AND_SWAP(dest, comparand, input) \
-    InterlockedCompareExchangeNoFence64((LONG volatile *)dest, (LONG)input, (LONG)comparand)
+    InterlockedCompareExchangeNoFence((LONG volatile *)dest, (LONG)input, (LONG)comparand)
 #define __LFQ_BOOL_COMPARE_AND_SWAP(dest, comparand, input) \
     __SYNC_BOOL_CAS((LONG volatile *)dest, (LONG)input, (LONG)comparand)
 #define __LFQ_FETCH_AND_ADD InterlockedExchangeAddNoFence
