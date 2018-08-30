@@ -162,7 +162,6 @@ lfqueue_init(lfqueue_t *lfqueue, int num_concurrent_consume) {
 void
 lfqueue_destroy(lfqueue_t *lfqueue) {
 	void* p;
-	int i;
 	while ((p = lfqueue_deq(lfqueue))) {
 		free(p);
 	}
