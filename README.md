@@ -15,23 +15,25 @@ size_t lfqueue_size(lfqueue_t *lfqueue);
 ## Example
 
 ```c
+
 int* ret;
-int max_queue_size = 1600;
-lfqueue_t results;
+int max_concurrent_thread = 16;
+lfqueue_t my_queue;
 
-lfqueue_init(&results, max_queue_size);
+lfqueue_init(&my_queue, max_concurrent_thread );
 
-/** Wrap This scope in multithread testing **/
+/** Wrap This scope in other threads **/
 int_data = (int*) malloc(sizeof(int));
 assert(int_data != NULL);
 *int_data = i++;
 /*Enqueue*/
- while (lfqueue_enq(&results, int_data) == -1) {
-   	printf("ENQ Full ?\n");
+ while (lfqueue_enq(&my_queue, int_data) == -1) {
+    printf("ENQ Full ?\n");
 }
 
+/** Wrap This scope in other threads **/
 /*Dequeue*/
-while  ( (int_data = lfqueue_deq(&results)) == NULL) {
+while  ( (int_data = lfqueue_deq(&my_queue)) == NULL) {
     printf("DEQ EMPTY ..\n");
 }
 
@@ -39,7 +41,7 @@ while  ( (int_data = lfqueue_deq(&results)) == NULL) {
 free(ret);
 /** End **/
 
-lfqueue_destroy(&results);
+lfqueue_destroy(&my_queue);
 
 ```
 
