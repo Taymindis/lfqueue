@@ -91,7 +91,7 @@ dequeue_(lfqueue_t *lfqueue) {
 	for (;;) {
 		head = lfqueue->head;
 		if (__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->head, head, head)) {
-			if (__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->tail, head, head)){
+			if (__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->tail, head, head)) {
 				if (head->next == NULL) {
 					return NULL;
 				}
@@ -129,67 +129,78 @@ enqueue_(lfqueue_t *lfqueue, void* value) {
 }
 
 int
-lfqueue_init(lfqueue_t *lfqueue, size_t queue_sz) {
-	// To assume concurrent access * concurrent access at 1 time
-	size_t i;
+lfqueue_init(lfqueue_t *lfqueue, int num_concurrent_consume) {
+	int i;
+
+	if (num_concurrent_consume <= 0) {
+		return -1;
+	}
+
 	lfqueue_cas_node_t *base = malloc(sizeof(lfqueue_cas_node_t));
 	if (base == NULL) {
 		return errno;
 	}
 	base->value = NULL;
 	base->next = NULL;
-	lfqueue->head = lfqueue->tail = base;
+	lfqueue->head = lfqueue->tail = base; // Not yet to be free for first node only
+
 	lfqueue->size = 0;
-	lfqueue->capacity = queue_sz;
-	lfqueue->rt_cyc = lfqueue->recy_node = malloc(queue_sz * sizeof(lfqueue_cas_node_t *));
-	for (i = 0; i < queue_sz; i++) {
-		lfqueue->recy_node[i] = NULL;
+
+	lfqueue->rt_ch = lfqueue->recy_ch = malloc(num_concurrent_consume * sizeof(lfqueue_cas_chain_t));
+
+	for (i = 0; i < num_concurrent_consume - 1; i++) {
+		lfqueue->recy_ch[i].p = NULL;
+		lfqueue->recy_ch[i].next = lfqueue->recy_ch + i + 1;
 	}
-	lfqueue->recy_pos = 0;
-	
-	//memset(lfqueue->chain, 0, queue_sz * sizeof(lfqueue_cas_node_t));
+
+	lfqueue->recy_ch[i].p = NULL;
+	lfqueue->recy_ch[i].next = lfqueue->rt_ch;
+
 	return 0;
 }
 
 void
 lfqueue_destroy(lfqueue_t *lfqueue) {
 	void* p;
-	size_t i;
+	int i;
 	while ((p = lfqueue_deq(lfqueue))) {
 		free(p);
 	}
-	// Clear the recycle nodes
-	for (i = 0; i < lfqueue->capacity; i++) {
-		if (lfqueue->recy_node[i])
-			free(lfqueue->recy_node[i]);
-	}
-	free(lfqueue->rt_cyc);
+	// Clear the recycle chain nodes
+	lfqueue_cas_chain_t *rch = lfqueue->recy_ch;
+	do {
+		if (rch->p) {
+			free(rch->p);
+		}
+	} while (rch->next == lfqueue->rt_ch);
+	free(lfqueue->rt_ch);
 	lfqueue->size = 0;
 }
 
 int
 lfqueue_enq(lfqueue_t *lfqueue, void *value) {
-	if ( __LFQ_FETCH_AND_ADD(&lfqueue->size, 1) >= lfqueue->capacity) {
-		// Rest the thread for other enqueue
-		__LFQ_ADD_AND_FETCH(&lfqueue->size, -1);
-		__LFQ_YIELD_THREAD();
-		return -1;
-	}
+	// if ( __LFQ_FETCH_AND_ADD(&lfqueue->size, 1) >= lfqueue->capacity) {
+	// 	// Rest the thread for other enqueue
+	// 	__LFQ_ADD_AND_FETCH(&lfqueue->size, -1);
+	// 	__LFQ_YIELD_THREAD();
+	// 	return -1;
+	// }
 	if (enqueue_(lfqueue, value)) {
-		__LFQ_ADD_AND_FETCH(&lfqueue->size, -1);
-		__LFQ_YIELD_THREAD();
 		return -1;
 	}
-	__LFQ_YIELD_THREAD();
+	__LFQ_ADD_AND_FETCH(&lfqueue->size, 1);
 	return 0;
 }
 
 void*
 lfqueue_deq(lfqueue_t *lfqueue) {
 	void *v;
-	__LFQ_SYNC_MEMORY();
-	if (__LFQ_ADD_AND_FETCH(&lfqueue->size, 0) && (v = dequeue_(lfqueue))) {
+	if (__LFQ_ADD_AND_FETCH(&lfqueue->size, 0)
+		&& (v = dequeue_(lfqueue))
+		) {
+
 		__LFQ_FETCH_AND_ADD(&lfqueue->size, -1);
+		__LFQ_YIELD_THREAD();
 		return v;
 	}
 	return NULL;
@@ -199,24 +210,15 @@ size_t
 lfqueue_size(lfqueue_t *lfqueue) {
 	return __LFQ_ADD_AND_FETCH(&lfqueue->size, 0);
 }
-/*
-static lfqueue_cas_node_t* 
-__lfq_assigned(lfqueue_t *q) {
-	size_t capacity = q->capacity;
-	lfqueue_cas_node_t *pchain = q->chain;
-	lfqueue_cas_node_t* alloc = pchain + ( __LFQ_FETCH_AND_ADD(&q->cycle, 1) % capacity);	
-	return alloc;
-}*/
+
+
 
 static void __lfq_recycle_free(lfqueue_t *q, lfqueue_cas_node_t* freenode) {
-	lfqueue_cas_node_t *p;
-	lfqueue_cas_node_t **rcyn = q->recy_node;
-	int i = __LFQ_FETCH_AND_ADD(&q->recy_pos, 1) % q->capacity;
-	if ((p = __LFQ_VAL_COMPARE_AND_SWAP(rcyn + i, NULL, freenode))) {
-		rcyn[i] = freenode;
-		free(p);
-	}
+	lfqueue_cas_chain_t *rcy_ch;
+	do {
+		rcy_ch = q->recy_ch;
+	} while (!__LFQ_BOOL_COMPARE_AND_SWAP(&q->recy_ch, rcy_ch, rcy_ch->next));
+
+	free(rcy_ch->p);
 }
-
-
 
