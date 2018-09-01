@@ -144,6 +144,8 @@ lfqueue_init(lfqueue_t *lfqueue, size_t queue_size, int num_concurrent, int expa
 	lfqueue->size = 0;
 	lfqueue->capacity = queue_size;
 	lfqueue->expandable = expandable;
+	lfqueue->expandable_sz = queue_size;
+	
 	for (i = 0; i < queue_size - 1; i++) {
 		base[i].value = NULL;
 		base[i].next = base + i + 1;
@@ -168,7 +170,7 @@ int
 lfqueue_enq(lfqueue_t *lfqueue, void *value) {
 	__LFQ_SYNC_MEMORY();
 	if (lfqueue->size >= lfqueue->capacity) {
-		// Rest the thread for other enqueue
+		// TODO if(lfqueue->expandable)
 		return -1;
 	}
 
