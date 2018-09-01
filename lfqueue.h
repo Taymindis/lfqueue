@@ -42,19 +42,14 @@ extern "C" {
 		struct lfqueue_cas_node_s *next;
 	} lfqueue_cas_node_t;
 
-	typedef struct lfqueue_cas_chain_s {
-		lfqueue_cas_node_t *p;
-		struct lfqueue_cas_chain_s *next;
-	} lfqueue_cas_chain_t;
-
 	typedef struct {
-		lfqueue_cas_node_t *head, *tail;
-		size_t size;
-		lfqueue_cas_chain_t *recy_ch, *rt_ch;
+		lfqueue_cas_node_t *head, *tail, *base;
+		size_t size, capacity, expandable_sz; // expandable size is ignored if expandable is false
+		int expandable;
 	} lfqueue_t;
 
-	/** Dequeue might be failed if the Deq thread access to the queue more than num_concurrent_consume **/
-	int   lfqueue_init(lfqueue_t *lfqueue, int num_concurrent_consume);
+	/** if Expandable is true, it double up the queue size **/
+	int   lfqueue_init(lfqueue_t *lfqueue, size_t queue_size, int expandable);
 	int   lfqueue_enq(lfqueue_t *lfqueue, void *value);
 	void *lfqueue_deq(lfqueue_t *lfqueue);
 	void lfqueue_destroy(lfqueue_t *lfqueue);
@@ -65,5 +60,6 @@ extern "C" {
 #endif
 
 #endif
+
 
 

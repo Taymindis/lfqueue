@@ -41,6 +41,8 @@
 #define __LFQ_ADD_AND_FETCH __sync_add_and_fetch
 #define __LFQ_YIELD_THREAD sched_yield
 #define __LFQ_SYNC_MEMORY __sync_synchronize
+#define __LFQ_LOAD_FENCE() __asm volatile( "lfence" ::: "memory")
+#define __LFQ_STORE_FENCE() __asm volatile( "sfence" ::: "memory" )
 
 #else
 
@@ -56,6 +58,8 @@ inline BOOL __SYNC_BOOL_CAS(LONG64 volatile *dest, LONG64 input, LONG64 comparan
 #define __LFQ_FETCH_AND_ADD InterlockedExchangeAddNoFence64
 #define __LFQ_ADD_AND_FETCH InterlockedAddNoFence64
 #define __LFQ_SYNC_MEMORY MemoryBarrier
+#define __LFQ_LOAD_FENCE LoadFence
+#define __LFQ_STORE_FENCE StoreFence
 
 #else
 #ifndef asm
@@ -71,6 +75,8 @@ inline BOOL __SYNC_BOOL_CAS(LONG volatile *dest, LONG input, LONG comparand) {
 #define __LFQ_FETCH_AND_ADD InterlockedExchangeAddNoFence
 #define __LFQ_ADD_AND_FETCH InterlockedAddNoFence
 #define __LFQ_SYNC_MEMORY() asm mfence
+#define __LFQ_LOAD_FENCE() asm lfence
+#define __LFQ_STORE_FENCE() asm sfence
 
 #endif
 #include <windows.h>
@@ -80,81 +86,74 @@ inline BOOL __SYNC_BOOL_CAS(LONG volatile *dest, LONG input, LONG comparand) {
 #include "lfqueue.h"
 #define DEF_LFQ_ASSIGNED_SPIN 2048
 
-//static lfqueue_cas_node_t* __lfq_assigned(lfqueue_t *);
-static void __lfq_recycle_free(lfqueue_t *, lfqueue_cas_node_t*);
+static void *dequeue_(lfqueue_t *lfqueue);
+static int enqueue_(lfqueue_t *lfqueue, void* value);
+int lfqueue_init(lfqueue_t *lfqueue, size_t queue_size, int expandable);
+void lfqueue_destroy(lfqueue_t *lfqueue);
+int lfqueue_enq(lfqueue_t *lfqueue, void *value);
+void* lfqueue_deq(lfqueue_t *lfqueue);
+size_t lfqueue_size(lfqueue_t *lfqueue);
 
 static void *
 dequeue_(lfqueue_t *lfqueue) {
 	lfqueue_cas_node_t *head, *next;
 	void *val;
-
+	int curr_aba;
 	for (;;) {
 		head = lfqueue->head;
-		if (__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->head, head, head)) {
-			if (__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->tail, head, head)) {
-				if (head->next == NULL) {
-					return NULL;
-				}
-			}
-			else {
-				if ((next = __LFQ_VAL_COMPARE_AND_SWAP(&head->next, NULL, NULL))) {
-					val = next->value;
-					if (__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->head, head, next)) {
-						break;
-					}
-				}
+		if (__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->head, head, head->next)) {
+			val = head->value;
+			if (__LFQ_BOOL_COMPARE_AND_SWAP(&head->value, val, NULL)) {
+				return val;
 			}
 		}
 	}
-	__lfq_recycle_free(lfqueue, head);
 	return val;
 }
 
 static int
 enqueue_(lfqueue_t *lfqueue, void* value) {
-	lfqueue_cas_node_t *tail, *node;
-	node = malloc(sizeof(lfqueue_cas_node_t));
-	node->value = value;
-	node->next = NULL;
+	lfqueue_cas_node_t *tail, *node, *next;
 	for (;;) {
 		tail = lfqueue->tail;
-		if (__LFQ_BOOL_COMPARE_AND_SWAP(&tail->next, NULL, node)) {
-			// compulsory swap as tail->next is no NULL anymore, it has fenced on other thread
-			__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->tail, tail, node);
-			return 0;
+		__LFQ_SYNC_MEMORY();
+		if (tail->next != lfqueue->head) {
+			next = tail->next;
+			if (__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->tail, tail, next)) {
+				if (!__LFQ_BOOL_COMPARE_AND_SWAP(&tail->value, NULL, value)) {
+					// Value over write? expand the size
+					continue;
+				}
+				return 0;
+			}
 		}
 	}
-	/*It never be here*/
 	return -1;
 }
 
 int
-lfqueue_init(lfqueue_t *lfqueue, int num_concurrent_consume) {
+lfqueue_init(lfqueue_t *lfqueue, size_t queue_size, int expandable/*expandable queue sz * 2 */) {
 	int i;
 
-	if (num_concurrent_consume <= 0) {
+	/*if(queue_size < 1024) {
+		perror("At least 1024 queue size to avoid infinite loop");
 		return -1;
-	}
+	}*/
 
-	lfqueue_cas_node_t *base = malloc(sizeof(lfqueue_cas_node_t));
+	lfqueue_cas_node_t *base = malloc(queue_size * sizeof(lfqueue_cas_node_t));
 	if (base == NULL) {
 		return errno;
 	}
-	base->value = NULL;
-	base->next = NULL;
-	lfqueue->head = lfqueue->tail = base; // Not yet to be free for first node only
-
+	lfqueue->base = lfqueue->head = lfqueue->tail = base;
 	lfqueue->size = 0;
-
-	lfqueue->rt_ch = lfqueue->recy_ch = malloc(num_concurrent_consume * sizeof(lfqueue_cas_chain_t));
-
-	for (i = 0; i < num_concurrent_consume - 1; i++) {
-		lfqueue->recy_ch[i].p = NULL;
-		lfqueue->recy_ch[i].next = lfqueue->recy_ch + i + 1;
+	lfqueue->capacity = queue_size;
+	lfqueue->expandable = expandable;
+	for (i = 0; i < queue_size - 1; i++) {
+		base[i].value = NULL;
+		base[i].next = base + i + 1;
 	}
-
-	lfqueue->recy_ch[i].p = NULL;
-	lfqueue->recy_ch[i].next = lfqueue->rt_ch;
+	base[i].value = NULL;
+	base[i].next = base;
 
 	return 0;
 }
@@ -165,25 +164,18 @@ lfqueue_destroy(lfqueue_t *lfqueue) {
 	while ((p = lfqueue_deq(lfqueue))) {
 		free(p);
 	}
-	// Clear the recycle chain nodes
-	lfqueue_cas_chain_t *rch = lfqueue->recy_ch;
-	do {
-		if (rch->p) {
-			free(rch->p);
-		}
-	} while (rch->next == lfqueue->rt_ch);
-	free(lfqueue->rt_ch);
+	free(lfqueue->base);
 	lfqueue->size = 0;
 }
 
 int
 lfqueue_enq(lfqueue_t *lfqueue, void *value) {
-	// if ( __LFQ_FETCH_AND_ADD(&lfqueue->size, 1) >= lfqueue->capacity) {
-	// 	// Rest the thread for other enqueue
-	// 	__LFQ_ADD_AND_FETCH(&lfqueue->size, -1);
-	// 	__LFQ_YIELD_THREAD();
-	// 	return -1;
-	// }
+	__LFQ_SYNC_MEMORY();
+	if (lfqueue->size >= lfqueue->capacity) {
+		// Rest the thread for other enqueue
+		return -1;
+	}
+
 	if (enqueue_(lfqueue, value)) {
 		return -1;
 	}
@@ -194,30 +186,19 @@ lfqueue_enq(lfqueue_t *lfqueue, void *value) {
 void*
 lfqueue_deq(lfqueue_t *lfqueue) {
 	void *v;
-	if (__LFQ_ADD_AND_FETCH(&lfqueue->size, 0)
-		&& (v = dequeue_(lfqueue))
-		) {
-
+	__LFQ_SYNC_MEMORY();
+	if (lfqueue->size
+	        && (v = dequeue_(lfqueue))
+	   ) {
 		__LFQ_FETCH_AND_ADD(&lfqueue->size, -1);
-		__LFQ_YIELD_THREAD();
 		return v;
 	}
+	__LFQ_YIELD_THREAD();
 	return NULL;
 }
 
 size_t
 lfqueue_size(lfqueue_t *lfqueue) {
 	return __LFQ_ADD_AND_FETCH(&lfqueue->size, 0);
-}
-
-
-
-static void __lfq_recycle_free(lfqueue_t *q, lfqueue_cas_node_t* freenode) {
-	lfqueue_cas_chain_t *rcy_ch;
-	do {
-		rcy_ch = q->recy_ch;
-	} while (!__LFQ_BOOL_COMPARE_AND_SWAP(&q->recy_ch, rcy_ch, rcy_ch->next));
-
-	free(rcy_ch->p);
 }
 
