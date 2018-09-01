@@ -170,7 +170,7 @@ lfqueue_destroy(lfqueue_t *lfqueue) {
 
 int
 lfqueue_enq(lfqueue_t *lfqueue, void *value) {
-	__LFQ_SYNC_MEMORY();
+	__LFQ_LOAD_FENCE();
 	if (lfqueue->size >= lfqueue->capacity) {
 		// Rest the thread for other enqueue
 		return -1;
@@ -186,14 +186,13 @@ lfqueue_enq(lfqueue_t *lfqueue, void *value) {
 void*
 lfqueue_deq(lfqueue_t *lfqueue) {
 	void *v;
-	__LFQ_SYNC_MEMORY();
+	__LFQ_LOAD_FENCE();
 	if (lfqueue->size
 	        && (v = dequeue_(lfqueue))
 	   ) {
 		__LFQ_FETCH_AND_ADD(&lfqueue->size, -1);
 		return v;
 	}
-	__LFQ_YIELD_THREAD();
 	return NULL;
 }
 

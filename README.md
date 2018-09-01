@@ -4,11 +4,14 @@ lock-free FIFO queue by C native built it, easy built cross platform(no extra de
 
 ## API 
 ```c
-int   lfqueue_init(lfqueue_t *lfqueue, int num_concurrent_thread);
+
+/** if Expandable is true, it double up the queue size **/
+int   lfqueue_init(lfqueue_t *lfqueue, size_t queue_size, int expandable);
 int   lfqueue_enq(lfqueue_t *lfqueue, void *value);
 void *lfqueue_deq(lfqueue_t *lfqueue);
 void lfqueue_destroy(lfqueue_t *lfqueue);
 size_t lfqueue_size(lfqueue_t *lfqueue);
+
 ```
 
 
