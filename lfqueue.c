@@ -88,17 +88,13 @@ inline BOOL __SYNC_BOOL_CAS(LONG volatile *dest, LONG input, LONG comparand) {
 
 static void *dequeue_(lfqueue_t *lfqueue);
 static int enqueue_(lfqueue_t *lfqueue, void* value);
-int lfqueue_init(lfqueue_t *lfqueue, size_t queue_size, int expandable);
-void lfqueue_destroy(lfqueue_t *lfqueue);
-int lfqueue_enq(lfqueue_t *lfqueue, void *value);
-void* lfqueue_deq(lfqueue_t *lfqueue);
-size_t lfqueue_size(lfqueue_t *lfqueue);
 
 static void *
 dequeue_(lfqueue_t *lfqueue) {
 	lfqueue_cas_node_t *head, *next;
 	void *val;
-	int curr_aba;
+	// int ispin = DEF_LFQ_ASSIGNED_SPIN;
+
 	for (;;) {
 		head = lfqueue->head;
 		if (__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->head, head, head->next)) {
@@ -108,7 +104,7 @@ dequeue_(lfqueue_t *lfqueue) {
 			}
 		}
 	}
-	return val;
+	return NULL;
 }
 
 static int
@@ -132,13 +128,13 @@ enqueue_(lfqueue_t *lfqueue, void* value) {
 }
 
 int
-lfqueue_init(lfqueue_t *lfqueue, size_t queue_size, int expandable/*expandable queue sz * 2 */) {
+lfqueue_init(lfqueue_t *lfqueue, size_t queue_size, int num_concurrent, int expandable/*expandable queue sz * 2 */) {
 	int i;
 
-	/*if(queue_size < 1024) {
+	if(queue_size < (num_concurrent * num_concurrent)) {
 		perror("At least 1024 queue size to avoid infinite loop");
 		return -1;
-	}*/
+	}
 
 	lfqueue_cas_node_t *base = malloc(queue_size * sizeof(lfqueue_cas_node_t));
 	if (base == NULL) {
@@ -170,7 +166,7 @@ lfqueue_destroy(lfqueue_t *lfqueue) {
 
 int
 lfqueue_enq(lfqueue_t *lfqueue, void *value) {
-	__LFQ_LOAD_FENCE();
+	__LFQ_SYNC_MEMORY();
 	if (lfqueue->size >= lfqueue->capacity) {
 		// Rest the thread for other enqueue
 		return -1;
@@ -186,10 +182,9 @@ lfqueue_enq(lfqueue_t *lfqueue, void *value) {
 void*
 lfqueue_deq(lfqueue_t *lfqueue) {
 	void *v;
-	__LFQ_LOAD_FENCE();
-	if (lfqueue->size
-	        && (v = dequeue_(lfqueue))
-	   ) {
+	if (/*lfqueue->size &&*/
+	    (v = dequeue_(lfqueue))
+	) {
 		__LFQ_FETCH_AND_ADD(&lfqueue->size, -1);
 		return v;
 	}

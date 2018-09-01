@@ -37,23 +37,23 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-	typedef struct lfqueue_cas_node_s {
-		void * value;
-		struct lfqueue_cas_node_s *next;
-	} lfqueue_cas_node_t;
+typedef struct lfqueue_cas_node_s {
+	void * value;
+	struct lfqueue_cas_node_s *next;
+} lfqueue_cas_node_t;
 
-	typedef struct {
-		lfqueue_cas_node_t *head, *tail, *base;
-		size_t size, capacity, expandable_sz; // expandable size is ignored if expandable is false
-		int expandable;
-	} lfqueue_t;
+typedef struct {
+	lfqueue_cas_node_t *head, *tail, *base;
+	size_t size, capacity, expandable_sz; // expandable size is ignored if expandable is false
+	int expandable;
+} lfqueue_t;
 
-	/** if Expandable is true, it double up the queue size **/
-	int   lfqueue_init(lfqueue_t *lfqueue, size_t queue_size, int expandable);
-	int   lfqueue_enq(lfqueue_t *lfqueue, void *value);
-	void *lfqueue_deq(lfqueue_t *lfqueue);
-	void lfqueue_destroy(lfqueue_t *lfqueue);
-	size_t lfqueue_size(lfqueue_t *lfqueue);
+/** if Expandable is true, it double up the queue size **/
+extern int   lfqueue_init(lfqueue_t *lfqueue, size_t queue_size, int num_concurrent, int expandable);
+extern int   lfqueue_enq(lfqueue_t *lfqueue, void *value);
+extern void *lfqueue_deq(lfqueue_t *lfqueue);
+extern void lfqueue_destroy(lfqueue_t *lfqueue);
+extern size_t lfqueue_size(lfqueue_t *lfqueue);
 
 #ifdef __cplusplus
 }
