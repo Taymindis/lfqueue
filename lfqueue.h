@@ -49,7 +49,7 @@ typedef struct {
 } lfqueue_t;
 
 /** if Expandable is true, it double up the queue size **/
-extern int   lfqueue_init(lfqueue_t *lfqueue, size_t queue_size, int num_concurrent, int expandable);
+extern int   lfqueue_init(lfqueue_t *lfqueue, size_t queue_size, unsigned int num_concurrent, int expandable);
 extern int   lfqueue_enq(lfqueue_t *lfqueue, void *value);
 extern void *lfqueue_deq(lfqueue_t *lfqueue);
 extern void lfqueue_destroy(lfqueue_t *lfqueue);

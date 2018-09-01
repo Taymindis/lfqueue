@@ -91,7 +91,7 @@ static int enqueue_(lfqueue_t *lfqueue, void* value);
 
 static void *
 dequeue_(lfqueue_t *lfqueue) {
-	lfqueue_cas_node_t *head, *next;
+	lfqueue_cas_node_t *head;
 	void *val;
 	// int ispin = DEF_LFQ_ASSIGNED_SPIN;
 
@@ -109,7 +109,7 @@ dequeue_(lfqueue_t *lfqueue) {
 
 static int
 enqueue_(lfqueue_t *lfqueue, void* value) {
-	lfqueue_cas_node_t *tail, *node, *next;
+	lfqueue_cas_node_t *tail, *next;
 	for (;;) {
 		tail = lfqueue->tail;
 		__LFQ_SYNC_MEMORY();
@@ -128,8 +128,8 @@ enqueue_(lfqueue_t *lfqueue, void* value) {
 }
 
 int
-lfqueue_init(lfqueue_t *lfqueue, size_t queue_size, int num_concurrent, int expandable/*expandable queue sz * 2 */) {
-	int i;
+lfqueue_init(lfqueue_t *lfqueue, size_t queue_size, unsigned int num_concurrent, int expandable/*expandable queue sz * 2 */) {
+	size_t i;
 
 	if(queue_size < (num_concurrent * num_concurrent)) {
 		perror("At least 1024 queue size to avoid infinite loop");

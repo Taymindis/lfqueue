@@ -57,7 +57,8 @@ int main(void)
 	//const static int nthreads = 2;//sysconf(_SC_NPROCESSORS_ONLN); // Linux
 	int i;
 
-	lfqueue_init(&results, total_put * nthreads);
+	if (lfqueue_init(&myq, total_put, nthreads, 1) == -1)
+		return -1;
 
 	/* Spawn threads. */
 	printf("Total threads = %d\n", nthreads);

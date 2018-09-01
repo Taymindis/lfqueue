@@ -8,14 +8,22 @@
 #include <stdio.h>
 #include "lfqueue.h"
 
+
+void one_enq_and_multi_deq(pthread_t *threads);
+void one_deq_and_multi_enq(pthread_t *threads);
+void multi_enq_deq(pthread_t *threads);
+void*  worker_sc(void *);
+void*  worker_s(void *);
+void*  worker_c(void *);
+
 struct timeval  tv1, tv2;
 lfqueue_t myq;
 
 #define total_put 500
 int nthreads = 16; //sysconf(_SC_NPROCESSORS_ONLN); // Linux
 int one_thread = 1;
+int nthreads_exited = 0;
 /** Worker Keep Consuming at the same time, do not try instensively **/
-void*  worker_c(void *);
 void*  worker_c(void *arg) {
 	int i = 0;
 	int *int_data;
@@ -28,12 +36,11 @@ void*  worker_c(void *arg) {
 		//	printf("%d\n", *int_data);
 		free(int_data);
 	}
-
+	__sync_add_and_fetch(&nthreads_exited, 1);
 	return 0;
 }
 
 /** Worker Keep Sending at the same time, do not try instensively **/
-void*  worker_s(void *);
 void*  worker_s(void *arg)
 {
 	int i = 0, *int_data;
@@ -47,13 +54,12 @@ void*  worker_s(void *arg)
 		while (lfqueue_enq(&myq, int_data)) {
 			printf("ENQ FULL?\n");
 		}
-
 	}
+	__sync_add_and_fetch(&nthreads_exited, 1);
 	return 0;
 }
 
 /** Worker Send And Consume at the same time **/
-void*  worker_sc(void *);
 void*  worker_sc(void *arg)
 {
 	int i = 0;
@@ -73,8 +79,8 @@ void*  worker_sc(void *arg)
 		}
 		// printf("%d\n", *int_data);
 		free(int_data);
-
 	}
+	__sync_add_and_fetch(&nthreads_exited, 1);
 	return 0;
 }
 
@@ -86,7 +92,7 @@ printf("current size= %d\n", (int) lfqueue_size(&myq) )
 #define detach_thread_and_loop \
 for (i = 0; i < nthreads; i++)\
 pthread_detach(threads[i]);\
-while (lfqueue_size(&myq)) {\
+while (!__sync_bool_compare_and_swap(&nthreads_exited, nthreads, nthreads) && lfqueue_size(&myq) != 0) {\
 usleep(2000);\
 printf("current size= %zu\n", lfqueue_size(&myq) );\
 }
@@ -100,7 +106,6 @@ void multi_enq_deq(pthread_t *threads) {
 	join_threads;
 	// detach_thread_and_loop;
 }
-
 void one_deq_and_multi_enq(pthread_t *threads) {
 	int i;
 	for (i = 0; i < nthreads; i++)
@@ -120,7 +125,11 @@ void one_enq_and_multi_deq(pthread_t *threads) {
 	worker_s(&nthreads);
 
 	//join_threads;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wimplicit-function-declaration"
 	detach_thread_and_loop;
+#pragma GCC diagnostic pop
+
 }
 
 int main(void)
@@ -140,7 +149,7 @@ int main(void)
 
 		// one_enq_and_multi_deq(threads);
 
-		 one_deq_and_multi_enq(threads);
+		one_deq_and_multi_enq(threads);
 
 		// multi_enq_deq(threads);
 
