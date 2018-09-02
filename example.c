@@ -52,7 +52,7 @@ void*  worker_s(void *arg)
 		/*Enqueue*/
 
 		while (lfqueue_enq(&myq, int_data)) {
-			printf("ENQ FULL?\n");
+			//printf("ENQ FULL?\n");
 		}
 	}
 	__sync_add_and_fetch(&nthreads_exited, 1);
