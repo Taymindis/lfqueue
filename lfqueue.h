@@ -54,6 +54,8 @@ extern int   lfqueue_enq(lfqueue_t *lfqueue, void *value);
 extern void *lfqueue_deq(lfqueue_t *lfqueue);
 extern void lfqueue_destroy(lfqueue_t *lfqueue);
 extern size_t lfqueue_size(lfqueue_t *lfqueue);
+extern void lfqueue_usleep(unsigned int usec);
+
 
 #ifdef __cplusplus
 }

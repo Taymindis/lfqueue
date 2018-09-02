@@ -198,3 +198,20 @@ lfqueue_size(lfqueue_t *lfqueue) {
 	return __LFQ_ADD_AND_FETCH(&lfqueue->size, 0);
 }
 
+void lfqueue_usleep(unsigned int usec) {
+#if _WIN32 || _WIN64
+	HANDLE hTimer;
+	LARGE_INTEGER DueTime;
+	DueTime.QuadPart = -(10 * (__int64)usec);
+	hTimer = CreateWaitableTimer(NULL, TRUE, NULL);
+	SetWaitableTimer(hTimer, &DueTime, 0, NULL, NULL, 0);	
+	if (WaitForSingleObject(hTimer, INFINITE) != WAIT_OBJECT_0){
+		/* TODO do nothing*/
+	}
+#else
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wimplicit-function-declaration"
+  usleep(usec);
+#pragma GCC diagnostic pop
+#endif
+}

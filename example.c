@@ -92,7 +92,7 @@ printf("current size= %d\n", (int) lfqueue_size(&myq) )
 #define detach_thread_and_loop \
 for (i = 0; i < nthreads; i++)\
 pthread_detach(threads[i]);\
-while (nthreads_exited<nthreads) \
+while (nthreads_exited<=nthreads) \
 	; \
 if(lfqueue_size(&myq) != 0){\
 usleep(2000);\
@@ -149,11 +149,11 @@ int main(void)
 		printf("Total requests %d \n", total_put);
 		gettimeofday(&tv1, NULL);
 
-		one_enq_and_multi_deq(threads);
+		// one_enq_and_multi_deq(threads);
 
 		// one_deq_and_multi_enq(threads);
 
-		// multi_enq_deq(threads);
+		multi_enq_deq(threads);
 
 		gettimeofday(&tv2, NULL);
 		printf ("Total time = %f seconds\n",
