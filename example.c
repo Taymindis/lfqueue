@@ -20,7 +20,7 @@ struct timeval  tv1, tv2;
 lfqueue_t myq;
 
 #define total_put 500
-int nthreads = 16; //sysconf(_SC_NPROCESSORS_ONLN); // Linux
+int nthreads = 4; //sysconf(_SC_NPROCESSORS_ONLN); // Linux
 int one_thread = 1;
 int nthreads_exited = 0;
 /** Worker Keep Consuming at the same time, do not try instensively **/
@@ -92,7 +92,9 @@ printf("current size= %d\n", (int) lfqueue_size(&myq) )
 #define detach_thread_and_loop \
 for (i = 0; i < nthreads; i++)\
 pthread_detach(threads[i]);\
-while (!__sync_bool_compare_and_swap(&nthreads_exited, nthreads, nthreads) && lfqueue_size(&myq) != 0) {\
+while (nthreads_exited<nthreads) \
+	; \
+if(lfqueue_size(&myq) != 0){\
 usleep(2000);\
 printf("current size= %zu\n", lfqueue_size(&myq) );\
 }
@@ -147,9 +149,9 @@ int main(void)
 		printf("Total requests %d \n", total_put);
 		gettimeofday(&tv1, NULL);
 
-		// one_enq_and_multi_deq(threads);
+		one_enq_and_multi_deq(threads);
 
-		one_deq_and_multi_enq(threads);
+		// one_deq_and_multi_enq(threads);
 
 		// multi_enq_deq(threads);
 
