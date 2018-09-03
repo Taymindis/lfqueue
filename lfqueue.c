@@ -99,25 +99,20 @@ dequeue_(lfqueue_t *lfqueue) {
 				if (next == NULL) {
 					val = NULL;
 					goreturn = 1;
-					goto done_;
 				}
-			}
-			else {
+			} else {
 				if (next) {
 					val = next->value;
 					if (__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->head, head, next)) {
 						head->active = 0;
 						goreturn = 1;
-						goto done_;
 					}
 				} else {
 					val = NULL;
 					goreturn = 1;
-					goto done_;
 				}
 			}
 		}
-done_:
 		__LFQ_FETCH_AND_ADD(&head->retain, -1);
 		// __asm volatile("" ::: "memory");
 		__LFQ_SYNC_MEMORY();
