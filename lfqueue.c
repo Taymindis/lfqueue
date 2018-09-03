@@ -83,13 +83,13 @@ inline BOOL __SYNC_BOOL_CAS(LONG volatile *dest, LONG input, LONG comparand) {
 #define DEF_LFQ_ASSIGNED_SPIN 2048
 
 //static lfqueue_cas_node_t* __lfq_assigned(lfqueue_t *);
-static int __lfq_recycle_free(lfqueue_t *, lfqueue_cas_node_t*);
+static void __lfq_recycle_free(lfqueue_t *, lfqueue_cas_node_t*);
 
 static void *
 dequeue_(lfqueue_t *lfqueue) {
 	lfqueue_cas_node_t *head, *next;
 	void *val;
-
+	int goreturn = 0;
 	for (;;) {
 		head = lfqueue->head;
 		__LFQ_FETCH_AND_ADD(&head->retain, 1);
@@ -98,7 +98,7 @@ dequeue_(lfqueue_t *lfqueue) {
 			if (__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->tail, head, head)) {
 				if (next == NULL) {
 					val = NULL;
-					__LFQ_FETCH_AND_ADD(&head->retain, -1);
+					goreturn = 1;
 					goto done_;
 				}
 			}
@@ -107,24 +107,27 @@ dequeue_(lfqueue_t *lfqueue) {
 					val = next->value;
 					if (__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->head, head, next)) {
 						head->active = 0;
-						__LFQ_FETCH_AND_ADD(&head->retain, -1);
+						goreturn = 1;
 						goto done_;
 					}
 				} else {
 					val = NULL;
-					__LFQ_FETCH_AND_ADD(&head->retain, -1);
+					goreturn = 1;
 					goto done_;
 				}
 			}
 		}
+done_:
 		__LFQ_FETCH_AND_ADD(&head->retain, -1);
+		// __asm volatile("" ::: "memory");
+		__LFQ_SYNC_MEMORY();
+		// __asm volatile("" ::: "memory");
+		__lfq_recycle_free(lfqueue, head);
+
+		if (goreturn)
+			return val;
 	}
 
-done_:
-	// __asm volatile("" ::: "memory");
-	__LFQ_SYNC_MEMORY();
-	// __asm volatile("" ::: "memory");
-	__lfq_recycle_free(lfqueue, head);
 	return val;
 }
 
@@ -239,9 +242,9 @@ lfqueue_size(lfqueue_t *lfqueue) {
 
 
 
-static int __lfq_recycle_free(lfqueue_t *q, lfqueue_cas_node_t* freenode) {
+static void __lfq_recycle_free(lfqueue_t *q, lfqueue_cas_node_t* freenode) {
 	if (__LFQ_BOOL_COMPARE_AND_SWAP(&freenode->retain, 0, 0)  &&
-	       __LFQ_BOOL_COMPARE_AND_SWAP(&freenode->active, 0, -1)  ) {
+	        __LFQ_BOOL_COMPARE_AND_SWAP(&freenode->active, 0, -1)  ) {
 		lfqueue_cas_node_t *freed;
 		do {
 			freed = q->move_free;
@@ -257,9 +260,7 @@ static int __lfq_recycle_free(lfqueue_t *q, lfqueue_cas_node_t* freenode) {
 			// printf("FREE???? %p, freecount %d\n", freed, q->freecount);
 			free(freed);
 		}
-		return 1;
 	}
-	return 0;
 }
 
 void lfqueue_usleep(unsigned int usec) {
