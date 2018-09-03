@@ -14,7 +14,7 @@ inner() {
 
 
 
-for i in {10..10000..1}; do set -e; echo $i; ./build/lfqueue-example; done
+for i in {1..2000..1}; do set -e; echo $i; ./build/lfqueue-example; done
   echo "<-- inner"
 }
 

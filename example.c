@@ -17,12 +17,11 @@ void*  worker_s(void *);
 void*  worker_c(void *);
 
 struct timeval  tv1, tv2;
-lfqueue_t myq;
-
-#define total_put 500
-int nthreads = 4; //sysconf(_SC_NPROCESSORS_ONLN); // Linux
+#define total_put 50000
+int nthreads = 16; //sysconf(_SC_NPROCESSORS_ONLN); // Linux
 int one_thread = 1;
 int nthreads_exited = 0;
+lfqueue_t *myq;
 /** Worker Keep Consuming at the same time, do not try instensively **/
 void*  worker_c(void *arg) {
 	int i = 0;
@@ -30,10 +29,11 @@ void*  worker_c(void *arg) {
 	int total_loop = total_put * (*(int*)arg);
 	while (i++ < total_loop) {
 		/*Dequeue*/
-		while ((int_data = lfqueue_deq(&myq)) == NULL) {
-			// usleep(1);
+		while ((int_data = lfqueue_deq(myq)) == NULL) {
+
 		}
 		//	printf("%d\n", *int_data);
+
 		free(int_data);
 	}
 	__sync_add_and_fetch(&nthreads_exited, 1);
@@ -51,11 +51,11 @@ void*  worker_s(void *arg)
 		*int_data = i;
 		/*Enqueue*/
 
-		while (lfqueue_enq(&myq, int_data)) {
-			//printf("ENQ FULL?\n");
+		while (lfqueue_enq(myq, int_data)) {
+			// printf("ENQ FULL?\n");
 		}
 	}
-	__sync_add_and_fetch(&nthreads_exited, 1);
+	// __sync_add_and_fetch(&nthreads_exited, 1);
 	return 0;
 }
 
@@ -69,13 +69,13 @@ void*  worker_sc(void *arg)
 		assert(int_data != NULL);
 		*int_data = i++;
 		/*Enqueue*/
-		while (lfqueue_enq(&myq, int_data)) {
+		while (lfqueue_enq(myq, int_data)) {
 			printf("ENQ FULL?\n");
 		}
 
 		/*Dequeue*/
-		while ((int_data = lfqueue_deq(&myq)) == NULL) {
-			// printf("DEQ EMPTY? %zu\n", lfqueue_size(&myq));
+		while ((int_data = lfqueue_deq(myq)) == NULL) {
+			// printf("DEQ EMPTY? %zu\n", lfqueue_size(myq));
 		}
 		// printf("%d\n", *int_data);
 		free(int_data);
@@ -87,19 +87,20 @@ void*  worker_sc(void *arg)
 #define join_threads \
 for (i = 0; i < nthreads; i++)\
 pthread_join(threads[i], NULL);\
-printf("current size= %d\n", (int) lfqueue_size(&myq) )
+printf("current size= %d\n", (int) lfqueue_size(myq) )
 
 #define detach_thread_and_loop \
 for (i = 0; i < nthreads; i++)\
 pthread_detach(threads[i]);\
-while (nthreads_exited<=nthreads) \
-	; \
-if(lfqueue_size(&myq) != 0){\
-usleep(2000);\
-printf("current size= %zu\n", lfqueue_size(&myq) );\
+while ( nthreads_exited < nthreads ) \
+	lfqueue_usleep(2000);\
+if(lfqueue_size(myq) != 0){\
+lfqueue_usleep(2000);\
+printf("current size= %zu\n", lfqueue_size(myq) );\
 }
 
 void multi_enq_deq(pthread_t *threads) {
+	printf("-----------%s---------------\n", "multi_enq_deq");
 	int i;
 	for (i = 0; i < nthreads; i++) {
 		pthread_create(threads + i, NULL, worker_sc, NULL);
@@ -109,6 +110,7 @@ void multi_enq_deq(pthread_t *threads) {
 	// detach_thread_and_loop;
 }
 void one_deq_and_multi_enq(pthread_t *threads) {
+	printf("-----------%s---------------\n", "one_deq_and_multi_enq");
 	int i;
 	for (i = 0; i < nthreads; i++)
 		pthread_create(threads + i, NULL, worker_s, &one_thread);
@@ -120,27 +122,26 @@ void one_deq_and_multi_enq(pthread_t *threads) {
 }
 
 void one_enq_and_multi_deq(pthread_t *threads) {
+	printf("-----------%s---------------\n", "one_enq_and_multi_deq");
 	int i;
 	for (i = 0; i < nthreads; i++)
 		pthread_create(threads + i, NULL, worker_c, &one_thread);
 
 	worker_s(&nthreads);
 
-	//join_threads;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wimplicit-function-declaration"
 	detach_thread_and_loop;
 #pragma GCC diagnostic pop
 
 }
-
+int ri = 10;
 int main(void)
 {
-	const int total_run = 10;
-	int n;
-	for (n = 0; n < total_run; n++) {
-		printf("running count = %d\n", n);
-		if (lfqueue_init(&myq, total_put, nthreads, 1) == -1)
+
+		myq = malloc(sizeof	(lfqueue_t));
+		nthreads_exited = 0;
+		if (lfqueue_init(myq, 1024) == -1)
 			return -1;
 
 		/* Spawn threads. */
@@ -149,11 +150,18 @@ int main(void)
 		printf("Total requests %d \n", total_put);
 		gettimeofday(&tv1, NULL);
 
-		// one_enq_and_multi_deq(threads);
+		one_enq_and_multi_deq(threads);
 
-		// one_deq_and_multi_enq(threads);
+		//one_deq_and_multi_enq(threads);
 
-		multi_enq_deq(threads);
+//		  multi_enq_deq(threads);
+
+
+		// worker_s(&ri);
+
+
+		// worker_c(&ri);
+
 
 		gettimeofday(&tv2, NULL);
 		printf ("Total time = %f seconds\n",
@@ -161,9 +169,13 @@ int main(void)
 		        (double) (tv2.tv_sec - tv1.tv_sec));
 
 		//getchar();
-		assert ( 0 == lfqueue_size(&myq) && "Error, all queue should be consumed but not");
+		lfqueue_usleep(1000);
+		assert ( 0 == lfqueue_size(myq) && "Error, all queue should be consumed but not");
 
-		lfqueue_destroy(&myq);
-	}
+		lfqueue_destroy(myq);
+		// sleep(3);
+		free(myq);
+
+
 	return 0;
 }
