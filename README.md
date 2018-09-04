@@ -5,12 +5,13 @@ lock-free FIFO queue by C native built it, easy built cross platform(no extra de
 ## API 
 ```c
 
-/** if Expandable is true, it double up the queue size **/
-extern int   lfqueue_init(lfqueue_t *lfqueue, size_t queue_size, int num_concurrent, int expandable);
+extern int   lfqueue_init(lfqueue_t *lfqueue);
 extern int   lfqueue_enq(lfqueue_t *lfqueue, void *value);
-extern void *lfqueue_deq(lfqueue_t *lfqueue);
+extern void* lfqueue_deq(lfqueue_t *lfqueue);
+extern void* lfqueue_single_deq(lfqueue_t *lfqueue);
 extern void lfqueue_destroy(lfqueue_t *lfqueue);
 extern size_t lfqueue_size(lfqueue_t *lfqueue);
+extern void lfqueue_usleep(unsigned int usec);
 
 ```
 
@@ -23,7 +24,8 @@ int* ret;
 int queue_sz = 1024;
 lfqueue_t my_queue;
 
-lfqueue_init(&my_queue, queue_sz );
+if (lfqueue_init(&myq) == -1)
+	return -1;
 
 /** Wrap This scope in other threads **/
 int_data = (int*) malloc(sizeof(int));

@@ -32,6 +32,7 @@
 #include <errno.h>
 #if defined __GNUC__ || defined __CYGWIN__ || defined __MINGW32__ || defined __APPLE__
 
+#include <sys/time.h>
 #include <pthread.h>
 #include <sched.h>
 
@@ -47,6 +48,7 @@
 #else
 
 #include <Windows.h>
+#include <time.h>
 #ifdef _WIN64
 inline BOOL __SYNC_BOOL_CAS(LONG64 volatile *dest, LONG64 input, LONG64 comparand) {
 	return InterlockedCompareExchangeNoFence64(dest, input, comparand) == comparand;
@@ -82,54 +84,101 @@ inline BOOL __SYNC_BOOL_CAS(LONG volatile *dest, LONG input, LONG comparand) {
 #include "lfqueue.h"
 #define DEF_LFQ_ASSIGNED_SPIN 2048
 
+#if defined __GNUC__ || defined __CYGWIN__ || defined __MINGW32__ || defined __APPLE__
+#define lfq_time_t long
+#define lfq_get_curr_time(_time_sec) \
+struct timeval _time_; \
+gettimeofday(&_time_, NULL); \
+*_time_sec = _time_.tv_sec
+#define lfq_diff_time(_etime_, _stime_) _etime_ - _stime_
+#else
+#define lfq_time_t time_t
+#define lfq_get_curr_time(_time_sec) time(_time_sec)
+#define lfq_diff_time(_etime_, _stime_) difftime(_etime_, _stime_)
+#endif
+
+struct lfqueue_cas_node_s {
+	void * value;
+	struct lfqueue_cas_node_s *next, *nextfree;
+	lfq_time_t _deactivate_tm;
+};
+
 //static lfqueue_cas_node_t* __lfq_assigned(lfqueue_t *);
-static int __lfq_recycle_free(lfqueue_t *, lfqueue_cas_node_t*);
+static void __lfq_recycle_free(lfqueue_t *, lfqueue_cas_node_t*);
+static void __lfq_check_free(lfqueue_t *);
+static void *_dequeue(lfqueue_t *);
+static void *_single_dequeue(lfqueue_t *);
+static int _enqueue(lfqueue_t *, void* );
 
 static void *
-dequeue_(lfqueue_t *lfqueue) {
+_dequeue(lfqueue_t *lfqueue) {
 	lfqueue_cas_node_t *head, *next;
 	void *val;
 
 	for (;;) {
 		head = lfqueue->head;
-		__LFQ_FETCH_AND_ADD(&head->retain, 1);
 		if (__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->head, head, head)) {
 			next = head->next;
 			if (__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->tail, head, head)) {
 				if (next == NULL) {
 					val = NULL;
-					__LFQ_FETCH_AND_ADD(&head->retain, -1);
-					goto done_;
+					goto _done;
 				}
 			}
 			else {
 				if (next) {
 					val = next->value;
 					if (__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->head, head, next)) {
-						head->active = 0;
-						__LFQ_FETCH_AND_ADD(&head->retain, -1);
-						goto done_;
+						break;
 					}
 				} else {
 					val = NULL;
-					__LFQ_FETCH_AND_ADD(&head->retain, -1);
-					goto done_;
+					goto _done;
 				}
 			}
 		}
-		__LFQ_FETCH_AND_ADD(&head->retain, -1);
 	}
 
-done_:
+	__lfq_recycle_free(lfqueue, head);
+_done:
 	// __asm volatile("" ::: "memory");
 	__LFQ_SYNC_MEMORY();
-	// __asm volatile("" ::: "memory");
-	__lfq_recycle_free(lfqueue, head);
+	__lfq_check_free(lfqueue);
+	return val;
+}
+
+static void *
+_single_dequeue(lfqueue_t *lfqueue) {
+	lfqueue_cas_node_t *head, *next;
+	void *val;
+
+	for (;;) {
+		head = lfqueue->head;
+		if (__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->head, head, head)) {
+			next = head->next;
+			if (__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->tail, head, head)) {
+				if (next == NULL) {
+					return NULL;
+				}
+			}
+			else {
+				if (next) {
+					val = next->value;
+					if (__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->head, head, next)) {
+						free(head);
+						break;
+					}
+				} else {
+					return NULL;
+				}
+			}
+		}
+	}
 	return val;
 }
 
 static int
-enqueue_(lfqueue_t *lfqueue, void* value) {
+_enqueue(lfqueue_t *lfqueue, void* value) {
 	lfqueue_cas_node_t *tail, *node;
 	node = (lfqueue_cas_node_t*) malloc(sizeof(lfqueue_cas_node_t));
 	if (node == NULL) {
@@ -138,16 +187,14 @@ enqueue_(lfqueue_t *lfqueue, void* value) {
 	}
 	node->value = value;
 	node->next = NULL;
-	node->active = 1;
-	node->retain = 0;
 	node->nextfree = NULL;
-	// int status;
 	for (;;) {
 		__LFQ_SYNC_MEMORY();
 		tail = lfqueue->tail;
 		if (__LFQ_BOOL_COMPARE_AND_SWAP(&tail->next, NULL, node)) {
 			// compulsory swap as tail->next is no NULL anymore, it has fenced on other thread
 			__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->tail, tail, node);
+			__lfq_check_free(lfqueue);
 			return 0;
 		}
 	}
@@ -156,12 +203,42 @@ enqueue_(lfqueue_t *lfqueue, void* value) {
 	return -1;
 }
 
-int
-lfqueue_init(lfqueue_t *lfqueue, unsigned int n_deq_in_sec) {
-	/** At least 1024 dequeue free level **/
-	if (n_deq_in_sec < 1024) {
-		n_deq_in_sec = 1024;
+static void
+__lfq_recycle_free(lfqueue_t *lfqueue, lfqueue_cas_node_t* freenode) {
+	lfqueue_cas_node_t *freed;
+	do {
+		freed = lfqueue->move_free;
+	} while (!__LFQ_BOOL_COMPARE_AND_SWAP(&freed->nextfree, NULL, freenode) );
+
+	lfq_get_curr_time(&freenode->_deactivate_tm);
+
+	__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->move_free, freed, freenode);
+}
+
+static void
+__lfq_check_free(lfqueue_t *lfqueue) {
+	lfq_time_t curr_time;
+	if (__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->in_free_mode, 0, 1)) {
+		lfq_get_curr_time(&curr_time);
+		lfqueue_cas_node_t *rtfree = lfqueue->root_free, *nextfree;
+		while ( rtfree && (rtfree != lfqueue->move_free) ) {
+			nextfree = rtfree->nextfree;
+			if ( lfq_diff_time(curr_time, rtfree->_deactivate_tm) > 2) {
+				//	printf("%p\n", rtfree);
+				free(rtfree);
+				rtfree = nextfree;
+			} else {
+				break;
+			}
+		}
+		lfqueue->root_free = rtfree;
+		__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->in_free_mode, 1, 0);
 	}
+	__LFQ_SYNC_MEMORY();
+}
+
+int
+lfqueue_init(lfqueue_t *lfqueue) {
 
 	lfqueue_cas_node_t *base = malloc(sizeof(lfqueue_cas_node_t));
 	lfqueue_cas_node_t *freebase = malloc(sizeof(lfqueue_cas_node_t));
@@ -170,22 +247,19 @@ lfqueue_init(lfqueue_t *lfqueue, unsigned int n_deq_in_sec) {
 		return errno;
 	}
 	base->value = NULL;
-	base->active = 1;
-	base->retain = 0;
 	base->next = NULL;
 	base->nextfree = NULL;
+	base->_deactivate_tm = 0;
 
 	freebase->value = NULL;
-	freebase->active = 0;
-	freebase->retain = 0;
 	freebase->next = NULL;
 	freebase->nextfree = NULL;
+	freebase->_deactivate_tm = 0;
 
 	lfqueue->head = lfqueue->tail = base; // Not yet to be free for first node only
 	lfqueue->root_free = lfqueue->move_free = freebase; // Not yet to be free for first node only
 	lfqueue->size = 0;
-	lfqueue->freecount = 0;
-	lfqueue->_ndeq_in_sec = n_deq_in_sec;
+	lfqueue->in_free_mode = 0;
 
 	return 0;
 }
@@ -198,19 +272,21 @@ lfqueue_destroy(lfqueue_t *lfqueue) {
 	}
 	// Clear the recycle chain nodes
 	lfqueue_cas_node_t *rtfree = lfqueue->root_free, *nextfree;
-	while (rtfree != lfqueue->move_free) {
+	while (rtfree && (rtfree != lfqueue->move_free) ) {
 		nextfree = rtfree->nextfree;
 		free(rtfree);
 		rtfree = nextfree;
 	}
-	free(rtfree);
+	if (rtfree) {
+		free(rtfree);
+	}
 
 	lfqueue->size = 0;
 }
 
 int
 lfqueue_enq(lfqueue_t *lfqueue, void *value) {
-	if (enqueue_(lfqueue, value)) {
+	if (_enqueue(lfqueue, value)) {
 		return -1;
 	}
 	__LFQ_ADD_AND_FETCH(&lfqueue->size, 1);
@@ -221,7 +297,23 @@ void*
 lfqueue_deq(lfqueue_t *lfqueue) {
 	void *v;
 	if (//__LFQ_ADD_AND_FETCH(&lfqueue->size, 0) &&
-	    (v = dequeue_(lfqueue))
+	    (v = _dequeue(lfqueue))
+	) {
+
+		__LFQ_FETCH_AND_ADD(&lfqueue->size, -1);
+		return v;
+	}
+	// Rest the thread for other thread, to avoid keep looping force
+	lfqueue_usleep(1000);
+	return NULL;
+}
+
+/**This is only applicable when only single thread consume only**/
+void*
+lfqueue_single_deq(lfqueue_t *lfqueue) {
+	void *v;
+	if (//__LFQ_ADD_AND_FETCH(&lfqueue->size, 0) &&
+	    (v = _single_dequeue(lfqueue))
 	) {
 
 		__LFQ_FETCH_AND_ADD(&lfqueue->size, -1);
@@ -237,30 +329,6 @@ lfqueue_size(lfqueue_t *lfqueue) {
 	return __LFQ_ADD_AND_FETCH(&lfqueue->size, 0);
 }
 
-
-
-static int __lfq_recycle_free(lfqueue_t *q, lfqueue_cas_node_t* freenode) {
-	if (__LFQ_BOOL_COMPARE_AND_SWAP(&freenode->retain, 0, 0)  &&
-	       __LFQ_BOOL_COMPARE_AND_SWAP(&freenode->active, 0, -1)  ) {
-		lfqueue_cas_node_t *freed;
-		do {
-			freed = q->move_free;
-		} while (!__LFQ_BOOL_COMPARE_AND_SWAP(&freed->nextfree, NULL, freenode) );
-
-		__LFQ_BOOL_COMPARE_AND_SWAP(&q->move_free, freed, freenode);
-
-		if ( __LFQ_FETCH_AND_ADD(&q->freecount, 1) > q->_ndeq_in_sec) {
-			__LFQ_FETCH_AND_ADD(&q->freecount, -1); // keep in _ndep_in_sec range
-			do {
-				freed = q->root_free;
-			} while (!__LFQ_BOOL_COMPARE_AND_SWAP(&q->root_free, freed, freed->nextfree) );
-			// printf("FREE???? %p, freecount %d\n", freed, q->freecount);
-			free(freed);
-		}
-		return 1;
-	}
-	return 0;
-}
 
 void lfqueue_usleep(unsigned int usec) {
 #if defined __GNUC__ || defined __CYGWIN__ || defined __MINGW32__ || defined __APPLE__
@@ -283,4 +351,3 @@ void lfqueue_usleep(unsigned int usec) {
 #ifdef __cplusplus
 }
 #endif
-

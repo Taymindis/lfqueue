@@ -8,8 +8,9 @@
 #include <time.h>
 
 struct timeval  tv1, tv2;
-lfqueue_t results;
+lfqueue_t myq;
 
+#define nthreads 8
 #define total_put 50000
 
 unsigned __stdcall worker(void *);
@@ -23,12 +24,12 @@ unsigned __stdcall worker(void *arg)
 		*int_data = i++;
 		/*Enqueue*/
 
-		while (lfqueue_enq(&results, int_data)) {
+		while (lfqueue_enq(&myq, int_data)) {
 			printf("ENQ FULL?\n");
 		}
-
+		
 		/*Dequeue*/
-		while ((int_data = lfqueue_deq(&results)) == NULL) {
+		while ((int_data = lfqueue_deq(&myq)) == NULL) {
 			// usleep(1000);
 			printf("DEQ EMPTY?\n");
 		}
@@ -40,46 +41,47 @@ unsigned __stdcall worker(void *arg)
 #define join_threads \
 for (i = 0; i < nthreads; i++)\
 WaitForSingleObject(threads[i], INFINITE);\
-printf("current size= %d\n", (int) lfqueue_size(&results) )
+printf("current size= %d\n", (int) lfqueue_size(&myq) )
 /*
 #define detach_thread_and_loop \
 for (i = 0; i < nthreads; i++)\
 pthread_detach(threads[i]);\
 while (1) {\
 sleep(2);\
-printf("current size= %zu\n", lfqueue_size(&results) );\
+printf("current size= %zu\n", lfqueue_size(&myq) );\
 }*/
 
-#define nthreads 8
 
 int main(void)
 {
 	//const static int nthreads = 2;//sysconf(_SC_NPROCESSORS_ONLN); // Linux
-	int i;
-
-	if (lfqueue_init(&myq, 1024) == -1)
+	int i, n; 
+	if (lfqueue_init(&myq) == -1)
 		return -1;
 
-	/* Spawn threads. */
-	printf("Total threads = %d\n", nthreads);
-	clock_t start = clock();
-	HANDLE threads[nthreads];
+	for (n = 0; n < 100; n++) {
+		/* Spawn threads. */
+		printf("Current running at %d, Total threads = %d\n", nthreads);
+		clock_t start = clock();
+		HANDLE threads[nthreads];
 
-	for (i = 0; i < nthreads; i++) {
-		unsigned udpthreadid; 
-		threads[i] = (HANDLE)_beginthreadex(NULL, 0, worker, NULL, 0, &udpthreadid);
+		for (i = 0; i < nthreads; i++) {
+			unsigned udpthreadid;
+			threads[i] = (HANDLE)_beginthreadex(NULL, 0, worker, NULL, 0, &udpthreadid);
+		}
+
+		join_threads;
+		// detach_thread_and_loop;
+
+		clock_t end = clock();
+
+		printf("Total time = %f seconds\n", (float)(end - start) / CLOCKS_PER_SEC);
+
+		assert(0 == lfqueue_size(&myq) && "Error, all queue should be consumed but not");
+
 	}
 
-	join_threads;
-	// detach_thread_and_loop;
-
-	clock_t end = clock();
-
-	printf("Total time = %f seconds\n", (float)(end - start) / CLOCKS_PER_SEC);
-
-	assert(0 == lfqueue_size(&results) && "Error, all queue should be consumed but not");
-
-	lfqueue_destroy(&results);
+	lfqueue_destroy(&myq);
 	printf("Press Any Key to Continue\n");
 	getchar();
 	return 0;

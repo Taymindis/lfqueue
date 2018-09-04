@@ -37,29 +37,22 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-typedef struct lfqueue_cas_node_s {
-	void * value;
-	struct lfqueue_cas_node_s *next, *nextfree;
-	volatile int retain, active;
-} lfqueue_cas_node_t;
+
+typedef struct lfqueue_cas_node_s lfqueue_cas_node_t;
 
 typedef struct {
 	lfqueue_cas_node_t *head, *tail, *root_free, *move_free;
 	volatile size_t size;
-	int freeing;
-	unsigned int _ndeq_in_sec;
-	volatile unsigned int freecount;
+	volatile int in_free_mode;
 } lfqueue_t;
 
-/** Dequeue might be failed if the Deq thread access to the queue more than num_concurrent_consume **/
-int   lfqueue_init(lfqueue_t *lfqueue, unsigned int n_deq_in_sec);
-int   lfqueue_enq(lfqueue_t *lfqueue, void *value);
-void *lfqueue_deq(lfqueue_t *lfqueue);
-void lfqueue_destroy(lfqueue_t *lfqueue);
-size_t lfqueue_size(lfqueue_t *lfqueue);
-void lfqueue_usleep(unsigned int usec);
-#ifdef __cplusplus
-}
-#endif
+extern int   lfqueue_init(lfqueue_t *lfqueue);
+extern int   lfqueue_enq(lfqueue_t *lfqueue, void *value);
+extern void* lfqueue_deq(lfqueue_t *lfqueue);
+extern void* lfqueue_single_deq(lfqueue_t *lfqueue);
+extern void lfqueue_destroy(lfqueue_t *lfqueue);
+extern size_t lfqueue_size(lfqueue_t *lfqueue);
+extern void lfqueue_usleep(unsigned int usec);
+
 #endif
 
