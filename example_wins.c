@@ -61,7 +61,7 @@ int main(void)
 
 	for (n = 0; n < 100; n++) {
 		/* Spawn threads. */
-		printf("Current running at %d, Total threads = %d\n", nthreads);
+		printf("Current running at %d, Total threads = %d\n", n, nthreads);
 		clock_t start = clock();
 		HANDLE threads[nthreads];
 
