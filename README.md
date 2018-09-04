@@ -21,10 +21,9 @@ extern void lfqueue_usleep(unsigned int usec);
 ```c
 
 int* ret;
-int queue_sz = 1024;
 lfqueue_t my_queue;
 
-if (lfqueue_init(&myq) == -1)
+if (lfqueue_init(&my_queue) == -1)
 	return -1;
 
 /** Wrap This scope in other threads **/
@@ -51,6 +50,8 @@ lfqueue_destroy(&my_queue);
 ```
 
 
+#### If you are using single thread dequeue/consume. Please use `lfqueue_single_deq` to get better result
+
 
 ## Build and Installation
 
@@ -74,9 +75,9 @@ sudo make install
 
 ```
 
-## Endless Testing 
+## continuously Test 
 
-For endless testing until interrupt, if you having any issue while testing, please kindly raise an issue
+For continuously test until N number, if you having any issue while testing, please kindly raise an issue
 
 ```bash
 
