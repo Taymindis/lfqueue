@@ -20,7 +20,7 @@ extern void lfqueue_usleep(unsigned int usec);
 
 ```c
 
-int* ret;
+int* int_data;
 lfqueue_t my_queue;
 
 if (lfqueue_init(&my_queue) == -1)
@@ -41,8 +41,8 @@ while  ( (int_data = lfqueue_deq(&my_queue)) == NULL) {
     printf("DEQ EMPTY ..\n");
 }
 
-// printf("%d\n", *(int*) ret );
-free(ret);
+// printf("%d\n", *(int*) int_data );
+free(int_data);
 /** End **/
 
 lfqueue_destroy(&my_queue);
