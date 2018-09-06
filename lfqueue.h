@@ -40,10 +40,20 @@ extern "C" {
 
 typedef struct lfqueue_cas_node_s lfqueue_cas_node_t;
 
+#if defined __GNUC__ || defined __CYGWIN__ || defined __MINGW32__ || defined __APPLE__
+#define lfq_bool_t int
+#else
+#ifdef _WIN64
+#define lfq_bool_t int64_t
+#else
+#define lfq_bool_t int
+#endif
+#endif
+
 typedef struct {
 	lfqueue_cas_node_t *head, *tail, *root_free, *move_free;
 	volatile size_t size;
-	volatile int in_free_mode;
+	volatile lfq_bool_t in_free_mode;
 } lfqueue_t;
 
 extern int   lfqueue_init(lfqueue_t *lfqueue);
