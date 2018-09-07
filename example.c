@@ -111,9 +111,9 @@ printf("current size= %d\n", (int) lfqueue_size(myq) )
 for (i = 0; i < nthreads; i++)\
 pthread_detach(threads[i]);\
 while ( nthreads_exited < nthreads ) \
-	lfqueue_usleep(2000);\
+	lfqueue_sleep(10);\
 if(lfqueue_size(myq) != 0){\
-lfqueue_usleep(2000);\
+lfqueue_sleep(10);\
 printf("current size= %zu\n", lfqueue_size(myq) );\
 }
 
@@ -162,7 +162,7 @@ int main(void)
 	if (lfqueue_init(myq) == -1)
 		return -1;
 
-	for (n = 0; n < 1000; n++) {
+	for (n = 0; n < 300; n++) {
 		printf("Current running at =%d, ", n);
 		nthreads_exited = 0;
 
@@ -172,10 +172,10 @@ int main(void)
 		printf("Total requests %d \n", total_put);
 		gettimeofday(&tv1, NULL);
 
-		one_enq_and_multi_deq(threads);
+		//one_enq_and_multi_deq(threads);
 
 		//one_deq_and_multi_enq(threads);
-		// multi_enq_deq(threads);
+		 multi_enq_deq(threads);
 		// worker_s(&ri);
 		// worker_c(&ri);
 
@@ -185,7 +185,7 @@ int main(void)
 		        (double) (tv2.tv_sec - tv1.tv_sec));
 
 		//getchar();
-		lfqueue_usleep(1000);
+		lfqueue_sleep(10);
 		assert ( 0 == lfqueue_size(myq) && "Error, all queue should be consumed but not");
 	}
 	lfqueue_destroy(myq);

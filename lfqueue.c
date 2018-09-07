@@ -42,8 +42,6 @@
 #define __LFQ_ADD_AND_FETCH __sync_add_and_fetch
 #define __LFQ_YIELD_THREAD sched_yield
 #define __LFQ_SYNC_MEMORY __sync_synchronize
-#define __LFQ_LOAD_MEMORY() __asm volatile( "lfence" )
-#define __LFQ_STORE_MEMORY() __asm volatile( "sfence" )
 
 #else
 
@@ -304,7 +302,7 @@ lfqueue_deq(lfqueue_t *lfqueue) {
 		return v;
 	}
 	// Rest the thread for other thread, to avoid keep looping force
-	lfqueue_usleep(1000);
+	lfqueue_sleep(1);
 	return NULL;
 }
 
@@ -320,7 +318,7 @@ lfqueue_single_deq(lfqueue_t *lfqueue) {
 		return v;
 	}
 	// Rest the thread for other thread, to avoid keep looping force
-	lfqueue_usleep(1000);
+	lfqueue_sleep(1);
 	return NULL;
 }
 
@@ -330,21 +328,15 @@ lfqueue_size(lfqueue_t *lfqueue) {
 }
 
 
-void lfqueue_usleep(unsigned int usec) {
+void 
+lfqueue_sleep(unsigned int milisec) {
 #if defined __GNUC__ || defined __CYGWIN__ || defined __MINGW32__ || defined __APPLE__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wimplicit-function-declaration"
-	usleep(usec);
+	usleep(milisec * 1000);
 #pragma GCC diagnostic pop
 #else
-	HANDLE hTimer;
-	LARGE_INTEGER DueTime;
-	DueTime.QuadPart = -(10 * (__int64)usec);
-	hTimer = CreateWaitableTimer(NULL, TRUE, NULL);
-	SetWaitableTimer(hTimer, &DueTime, 0, NULL, NULL, 0);
-	if (WaitForSingleObject(hTimer, INFINITE) != WAIT_OBJECT_0) {
-		/* TODO do nothing*/
-	}
+	Sleep(milisec);
 #endif
 }
 
