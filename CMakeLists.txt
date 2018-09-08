@@ -11,7 +11,7 @@ file(GLOB_RECURSE sources lfqueue.c lfqueue.h)
 file(GLOB_RECURSE sources_test test.cpp)
 file(GLOB_RECURSE example_test lfqueue.c lfqueue.h example.c)
 
-
+enable_testing()
 add_executable(lfqueue-example ${example_test})
 target_link_libraries(lfqueue-example PUBLIC pthread)
 
@@ -30,6 +30,7 @@ target_link_libraries(${PROJNAME}.static)
 set_target_properties(${PROJNAME}.static PROPERTIES OUTPUT_NAME ${PROJNAME})
 add_library(${PROJNAME} SHARED ${sources})
 target_link_libraries(${PROJNAME})
+add_test (NAME lfqueue_test COMMAND lfqueue-example)
 
 
 # link_directories(/usr/local/lib /usr/lib)
