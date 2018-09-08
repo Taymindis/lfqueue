@@ -33,7 +33,7 @@
 #if defined __GNUC__ || defined __CYGWIN__ || defined __MINGW32__ || defined __APPLE__
 
 #include <sys/time.h>
-#include <pthread.h>
+#include <unistd.h> // for usleep
 #include <sched.h>
 
 #define __LFQ_VAL_COMPARE_AND_SWAP __sync_val_compare_and_swap
@@ -326,7 +326,6 @@ size_t
 lfqueue_size(lfqueue_t *lfqueue) {
 	return __LFQ_ADD_AND_FETCH(&lfqueue->size, 0);
 }
-
 
 void 
 lfqueue_sleep(unsigned int milisec) {
