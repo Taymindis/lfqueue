@@ -279,6 +279,8 @@ lfqueue_destroy(lfqueue_t *lfqueue) {
 		free(rtfree);
 	}
 
+	free(lfqueue->tail); // Last free
+
 	lfqueue->size = 0;
 }
 
