@@ -1,0 +1,9 @@
+version: 1.0.{build}
+configuration: Release
+platform:
+- x64
+- x86
+build:
+  verbosity: minimal
+after_build:
+- cmd: IF "%PLATFORM%"=="x64" ( C:\projects\lfqueue\lfqueue_vs201x\%PLATFORM%\Release\lfqueue_vs201x.exe ) ELSE ( C:\projects\lfqueue\lfqueue_vs201x\Release\lfqueue_vs201x.exe )

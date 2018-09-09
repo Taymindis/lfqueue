@@ -4,7 +4,9 @@ lock-free FIFO queue by C native built it, easy built cross platform(no extra de
 
 # All Platform tests
 
-[![Build Status](https://travis-ci.org/Taymindis/lfqueue.svg?branch=master)](https://travis-ci.org/Taymindis/lfqueue)
+GCC/CLANG | [![Build Status](https://travis-ci.org/Taymindis/lfqueue.svg?branch=master)](https://travis-ci.org/Taymindis/lfqueue)
+
+VS x64/x86 | [![Build status](https://ci.appveyor.com/api/projects/status/7srsrdgj7f524sam?svg=true)](https://ci.appveyor.com/project/Taymindis/lfqueue)
 
 
 ## API 
