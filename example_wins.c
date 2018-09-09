@@ -82,8 +82,8 @@ int main(void)
 	}
 
 	lfqueue_destroy(&myq);
-	printf("Press Any Key to Continue\n");
-	getchar();
+	printf("Test Pass!\n");
+	//getchar();
 	return 0;
 }
 
