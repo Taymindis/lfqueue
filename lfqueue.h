@@ -64,5 +64,10 @@ extern void lfqueue_destroy(lfqueue_t *lfqueue);
 extern size_t lfqueue_size(lfqueue_t *lfqueue);
 extern void lfqueue_sleep(unsigned int milisec);
 
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif
 
