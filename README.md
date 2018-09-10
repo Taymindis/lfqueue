@@ -1,4 +1,5 @@
-# lfqueue
+# lfqueue [![Build Status](https://travis-ci.org/Taymindis/lfqueue.svg?branch=master)](https://travis-ci.org/Taymindis/lfqueue)
+
 lock-free FIFO queue by C native built it, easy built cross platform(no extra dependencies needed) , guarantee thread safety memory management ever!
 
 
