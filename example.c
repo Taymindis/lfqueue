@@ -104,8 +104,7 @@ void*  worker_sc(void *arg)
 
 #define join_threads \
 for (i = 0; i < nthreads; i++)\
-pthread_join(threads[i], NULL);\
-printf("current size= %d\n", (int) lfqueue_size(myq) )
+pthread_join(threads[i], NULL)
 
 #define detach_thread_and_loop \
 for (i = 0; i < nthreads; i++)\
@@ -113,8 +112,7 @@ pthread_detach(threads[i]);\
 while ( nthreads_exited < nthreads ) \
 	lfqueue_sleep(10);\
 if(lfqueue_size(myq) != 0){\
-lfqueue_sleep(10);\
-printf("current size= %zu\n", lfqueue_size(myq) );\
+lfqueue_sleep(10);
 }
 
 void multi_enq_deq(pthread_t *threads) {

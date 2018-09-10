@@ -40,8 +40,7 @@ unsigned __stdcall worker(void *arg)
 
 #define join_threads \
 for (i = 0; i < nthreads; i++)\
-WaitForSingleObject(threads[i], INFINITE);\
-printf("current size= %d\n", (int) lfqueue_size(&myq) )
+WaitForSingleObject(threads[i], INFINITE)
 /*
 #define detach_thread_and_loop \
 for (i = 0; i < nthreads; i++)\
