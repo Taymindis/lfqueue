@@ -303,9 +303,18 @@ lfqueue_deq(lfqueue_t *lfqueue) {
 		__LFQ_FETCH_AND_ADD(&lfqueue->size, -1);
 		return v;
 	}
-	// Rest the thread for other thread, to avoid keep looping force
-	lfqueue_sleep(1);
 	return NULL;
+}
+
+void*
+lfqueue_deq_must(lfqueue_t *lfqueue) {
+	void *v;
+	while ( !(v = _dequeue(lfqueue)) ) {
+		// Rest the thread for other thread, to avoid keep looping force
+		lfqueue_sleep(1);
+	}
+	__LFQ_FETCH_AND_ADD(&lfqueue->size, -1);
+	return v;
 }
 
 /**This is only applicable when only single thread consume only**/
@@ -319,9 +328,19 @@ lfqueue_single_deq(lfqueue_t *lfqueue) {
 		__LFQ_FETCH_AND_ADD(&lfqueue->size, -1);
 		return v;
 	}
-	// Rest the thread for other thread, to avoid keep looping force
-	lfqueue_sleep(1);
 	return NULL;
+}
+
+/**This is only applicable when only single thread consume only**/
+void*
+lfqueue_single_deq_must(lfqueue_t *lfqueue) {
+	void *v;
+	while ( !(v = _single_dequeue(lfqueue)) ) {
+		// Rest the thread for other thread, to avoid keep looping force
+		lfqueue_sleep(1);
+	}
+	__LFQ_FETCH_AND_ADD(&lfqueue->size, -1);
+	return v;
 }
 
 size_t
@@ -329,7 +348,7 @@ lfqueue_size(lfqueue_t *lfqueue) {
 	return __LFQ_ADD_AND_FETCH(&lfqueue->size, 0);
 }
 
-void 
+void
 lfqueue_sleep(unsigned int milisec) {
 #if defined __GNUC__ || defined __CYGWIN__ || defined __MINGW32__ || defined __APPLE__
 #pragma GCC diagnostic push

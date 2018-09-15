@@ -60,6 +60,11 @@ extern int   lfqueue_init(lfqueue_t *lfqueue);
 extern int   lfqueue_enq(lfqueue_t *lfqueue, void *value);
 extern void* lfqueue_deq(lfqueue_t *lfqueue);
 extern void* lfqueue_single_deq(lfqueue_t *lfqueue);
+
+/** loop until value been dequeue, it sleeps 1ms if not found to reduce cpu high usage **/
+extern void* lfqueue_deq_must(lfqueue_t *lfqueue);
+extern void* lfqueue_single_deq_must(lfqueue_t *lfqueue);
+
 extern void lfqueue_destroy(lfqueue_t *lfqueue);
 extern size_t lfqueue_size(lfqueue_t *lfqueue);
 extern void lfqueue_sleep(unsigned int milisec);
