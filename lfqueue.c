@@ -107,6 +107,12 @@ static void __lfq_check_free(lfqueue_t *);
 static void *_dequeue(lfqueue_t *);
 static void *_single_dequeue(lfqueue_t *);
 static int _enqueue(lfqueue_t *, void* );
+static inline void* _lfqueue_malloc(void* pl, size_t sz) {
+	return malloc(sz);
+}
+static inline void _lfqueue_free(void* pl, void* ptr) {
+	free(ptr);
+}
 
 static void *
 _dequeue(lfqueue_t *lfqueue) {
@@ -163,7 +169,7 @@ _single_dequeue(lfqueue_t *lfqueue) {
 				if (next) {
 					val = next->value;
 					if (__LFQ_BOOL_COMPARE_AND_SWAP(&lfqueue->head, head, next)) {
-						free(head);
+						lfqueue->_free(lfqueue->pl, head);
 						break;
 					}
 				} else {
@@ -178,7 +184,7 @@ _single_dequeue(lfqueue_t *lfqueue) {
 static int
 _enqueue(lfqueue_t *lfqueue, void* value) {
 	lfqueue_cas_node_t *tail, *node;
-	node = (lfqueue_cas_node_t*) malloc(sizeof(lfqueue_cas_node_t));
+	node = (lfqueue_cas_node_t*) lfqueue->_malloc(lfqueue->pl, sizeof(lfqueue_cas_node_t));
 	if (node == NULL) {
 		perror("malloc");
 		return errno;
@@ -223,7 +229,7 @@ __lfq_check_free(lfqueue_t *lfqueue) {
 			nextfree = rtfree->nextfree;
 			if ( lfq_diff_time(curr_time, rtfree->_deactivate_tm) > 2) {
 				//	printf("%p\n", rtfree);
-				free(rtfree);
+				lfqueue->_free(lfqueue->pl, rtfree);
 				rtfree = nextfree;
 			} else {
 				break;
@@ -237,9 +243,17 @@ __lfq_check_free(lfqueue_t *lfqueue) {
 
 int
 lfqueue_init(lfqueue_t *lfqueue) {
+	return lfqueue_init_mf(lfqueue, NULL, _lfqueue_malloc, _lfqueue_free);
+}
 
-	lfqueue_cas_node_t *base = malloc(sizeof(lfqueue_cas_node_t));
-	lfqueue_cas_node_t *freebase = malloc(sizeof(lfqueue_cas_node_t));
+int
+lfqueue_init_mf(lfqueue_t *lfqueue, void* pl, lfqueue_malloc_fn lfqueue_malloc, lfqueue_free_fn lfqueue_free) {
+	lfqueue->_malloc = lfqueue_malloc;
+	lfqueue->_free = lfqueue_free;
+	lfqueue->pl = pl;
+
+	lfqueue_cas_node_t *base = lfqueue_malloc(pl, sizeof(lfqueue_cas_node_t));
+	lfqueue_cas_node_t *freebase = lfqueue_malloc(pl, sizeof(lfqueue_cas_node_t));
 	if (base == NULL || freebase == NULL) {
 		perror("malloc");
 		return errno;
@@ -266,20 +280,20 @@ void
 lfqueue_destroy(lfqueue_t *lfqueue) {
 	void* p;
 	while ((p = lfqueue_deq(lfqueue))) {
-		free(p);
+		lfqueue->_free(lfqueue->pl, p);
 	}
 	// Clear the recycle chain nodes
 	lfqueue_cas_node_t *rtfree = lfqueue->root_free, *nextfree;
 	while (rtfree && (rtfree != lfqueue->move_free) ) {
 		nextfree = rtfree->nextfree;
-		free(rtfree);
+		lfqueue->_free(lfqueue->pl, rtfree);
 		rtfree = nextfree;
 	}
 	if (rtfree) {
-		free(rtfree);
+		lfqueue->_free(lfqueue->pl, rtfree);
 	}
 
-	free(lfqueue->tail); // Last free
+	lfqueue->_free(lfqueue->pl, lfqueue->tail); // Last free
 
 	lfqueue->size = 0;
 }

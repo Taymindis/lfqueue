@@ -39,6 +39,8 @@ extern "C" {
 #endif
 
 typedef struct lfqueue_cas_node_s lfqueue_cas_node_t;
+typedef void* (*lfqueue_malloc_fn)(void*, size_t);
+typedef void (*lfqueue_free_fn)(void*, void*);
 
 #if defined __GNUC__ || defined __CYGWIN__ || defined __MINGW32__ || defined __APPLE__
 #define lfq_bool_t int
@@ -54,9 +56,13 @@ typedef struct {
 	lfqueue_cas_node_t *head, *tail, *root_free, *move_free;
 	volatile size_t size;
 	volatile lfq_bool_t in_free_mode;
+	lfqueue_malloc_fn _malloc;
+	lfqueue_free_fn _free;
+	void *pl;
 } lfqueue_t;
 
 extern int   lfqueue_init(lfqueue_t *lfqueue);
+extern int   lfqueue_init_mf(lfqueue_t *lfqueue, void* pl, lfqueue_malloc_fn lfqueue_malloc, lfqueue_free_fn lfqueue_free);
 extern int   lfqueue_enq(lfqueue_t *lfqueue, void *value);
 extern void* lfqueue_deq(lfqueue_t *lfqueue);
 extern void* lfqueue_single_deq(lfqueue_t *lfqueue);
