@@ -1,19 +1,40 @@
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
-#include "lfqueue.h"
-#include <Windows.h>
 #include <time.h>
+#include "lfqueue.h"
+
+#ifndef LFQ_WINDOWS
+#error This is Windows only code
+#endif
+
+#define VC_EXTRALEAN
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#include <process.h>    /* _beginthread, _endthread */
+
+/*----------------------------------------------------------------------------------------------*/
+/*
+ * Structure used in select() call, taken from the BSD file sys/time.h.
+ */
+struct timeval {
+	long    tv_sec;         /* seconds */
+	long    tv_usec;        /* and microseconds */
+};
 
 struct timeval  tv1, tv2;
-lfqueue_t myq;
 
-#define nthreads 8
+lfqueue_t the_queue;
+
+#define MAX_THREADS 8
 #define total_put 50000
-
+/*----------------------------------------------------------------------------------------------*/
 unsigned __stdcall worker(void *);
+/*----------------------------------------------------------------------------------------------*/
 unsigned __stdcall worker(void *arg)
 {
 	int i = 0;
@@ -24,12 +45,12 @@ unsigned __stdcall worker(void *arg)
 		*int_data = i++;
 		/*Enqueue*/
 
-		while (lfqueue_enq(&myq, int_data)) {
+		while (lfqueue_enq(&the_queue, int_data)) {
 			printf("ENQ FULL?\n");
 		}
 		
 		/*Dequeue*/
-		while ((int_data = lfqueue_deq(&myq)) == NULL) {
+		while ((int_data = lfqueue_deq(&the_queue)) == NULL) {
 			// usleep(1000);
 			printf("DEQ EMPTY?\n");
 		}
@@ -38,51 +59,75 @@ unsigned __stdcall worker(void *arg)
 	return 0;
 }
 
-#define join_threads \
-for (i = 0; i < nthreads; i++)\
+/*----------------------------------------------------------------------------------------------*/
+#define JOIN_ALL_THREADS \
+for (i = 0; i < MAX_THREADS; i++)\
 WaitForSingleObject(threads[i], INFINITE)
+
+/*----------------------------------------------------------------------------------------------*/
 /*
 #define detach_thread_and_loop \
-for (i = 0; i < nthreads; i++)\
+for (i = 0; i < MAX_THREADS; i++)\
 pthread_detach(threads[i]);\
 while (1) {\
 sleep(2);\
-printf("current size= %zu\n", lfqueue_size(&myq) );\
+printf("current size= %zu\n", lfqueue_size(&the_queue) );\
 }*/
 
-
-int main(void)
+/*----------------------------------------------------------------------------------------------*/
+int main(int argc, char ** argv)
 {
-	//const static int nthreads = 2;//sysconf(_SC_NPROCESSORS_ONLN); // Linux
+	//const static int MAX_THREADS = 2;//sysconf(_SC_NPROCESSORS_ONLN); // Linux
+
+	static const int LOOP_SIZE_ = 100;
 	int i, n; 
-	if (lfqueue_init(&myq) == -1)
-		return -1;
 
-	for (n = 0; n < 100; n++) {
-		/* Spawn threads. */
-		printf("Current running at %d, Total threads = %d\n", n, nthreads);
+	if (lfqueue_init(&the_queue) == -1) {
+		perror("LF QUEUE initialization has failed.");
+		return EXIT_FAILURE ;
+	}
+
+	printf("\n\n");
+	clock_t total_start = clock();
+	
+	for (n = 0; n < LOOP_SIZE_; n++) {
+
+		/* Spawn the threads. */
+		HANDLE threads[MAX_THREADS] = {0};
+
 		clock_t start = clock();
-		HANDLE threads[nthreads];
-
-		for (i = 0; i < nthreads; i++) {
-			unsigned udpthreadid;
+		/* inside each loop begin workers on separate threads */
+		for (i = 0; i < MAX_THREADS; i++) 
+		{
+			unsigned udpthreadid = 0;
 			threads[i] = (HANDLE)_beginthreadex(NULL, 0, worker, NULL, 0, &udpthreadid);
 		}
 
-		join_threads;
+		JOIN_ALL_THREADS;
 		// detach_thread_and_loop;
 
-		clock_t end = clock();
+		printf("\rFinished loop [%3d] of [%3d], Total time to begin and join [%3d] threads was:  [%3.3f] seconds ", 
+			n, LOOP_SIZE_, MAX_THREADS, ((float)(clock() - start) / CLOCKS_PER_SEC));
 
-		printf("Total time = %f seconds\n", (float)(end - start) / CLOCKS_PER_SEC);
+		if (0 != lfqueue_size(&the_queue))
+		{
+			perror("Error, all queues should be consumed but they are not");
+				return EXIT_FAILURE;
+		}
 
-		assert(0 == lfqueue_size(&myq) && "Error, all queue should be consumed but not");
+	} /* main loop */
 
-	}
+	lfqueue_destroy(&the_queue);
 
-	lfqueue_destroy(&myq);
-	printf("Test Pass!\n");
-	//getchar();
-	return 0;
+	printf("\n\n");
+	printf("Total test time: %3.3f minutes", ((float)(clock() - total_start) / CLOCKS_PER_SEC) / 60.0 );
+	printf("\n\n");
+
+	system("@echo.");
+	system("@echo --- Test has passed --- ");
+	system("@echo.");
+	system("@pause.");
+
+	return EXIT_SUCCESS;
 }
 

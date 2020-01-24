@@ -43,7 +43,7 @@
 #define __LFQ_YIELD_THREAD sched_yield
 #define __LFQ_SYNC_MEMORY __sync_synchronize
 
-#else
+#else /* NOT defined __GNUC__ || defined __CYGWIN__ || defined __MINGW32__ || defined __APPLE__ */
 
 #include <Windows.h>
 #include <time.h>
@@ -59,7 +59,8 @@ inline BOOL __SYNC_BOOL_CAS(LONG64 volatile *dest, LONG64 input, LONG64 comparan
 #define __LFQ_ADD_AND_FETCH InterlockedAddNoFence64
 #define __LFQ_SYNC_MEMORY MemoryBarrier
 
-#else
+#else /* NOT _WIN64*/
+
 #ifndef asm
 #define asm __asm
 #endif
@@ -74,13 +75,17 @@ inline BOOL __SYNC_BOOL_CAS(LONG volatile *dest, LONG input, LONG comparand) {
 #define __LFQ_ADD_AND_FETCH InterlockedAddNoFence
 #define __LFQ_SYNC_MEMORY() asm mfence
 
-#endif
+#endif /* NOT _WIN64 */
+
 #include <windows.h>
 #define __LFQ_YIELD_THREAD SwitchToThread
-#endif
+
+#endif /* defined __GNUC__ || defined __CYGWIN__ || defined __MINGW32__ || defined __APPLE__ */
 
 #include "lfqueue.h"
 #define DEF_LFQ_ASSIGNED_SPIN 2048
+
+/*----------------------------------------------------------------------------------------------*/
 
 #if defined __GNUC__ || defined __CYGWIN__ || defined __MINGW32__ || defined __APPLE__
 #define lfq_time_t long
@@ -95,11 +100,15 @@ gettimeofday(&_time_, NULL); \
 #define lfq_diff_time(_etime_, _stime_) difftime(_etime_, _stime_)
 #endif
 
+/*----------------------------------------------------------------------------------------------*/
+
 struct lfqueue_cas_node_s {
 	void * value;
 	struct lfqueue_cas_node_s *next, *nextfree;
 	lfq_time_t _deactivate_tm;
 };
+
+/*----------------------------------------------------------------------------------------------*/
 
 //static lfqueue_cas_node_t* __lfq_assigned(lfqueue_t *);
 static void __lfq_recycle_free(lfqueue_t *, lfqueue_cas_node_t*);
@@ -107,8 +116,30 @@ static void __lfq_check_free(lfqueue_t *);
 static void *_dequeue(lfqueue_t *);
 static void *_single_dequeue(lfqueue_t *);
 static int _enqueue(lfqueue_t *, void* );
-static inline void* _lfqueue_malloc(void* pl, size_t sz) {
-	return malloc(sz);
+/*----------------------------------------------------------------------------------------------*/
+
+static const size_t LFQ_MAX_SINGLE_ALLOCATION = 0xFFFF;
+
+static inline void* _lfqueue_malloc(void* pl, size_t sz) 
+{
+	/*return malloc(sz);*/
+#ifdef NDEBUG
+	return calloc(1,sz);
+#else
+	if (sz >= LFQ_MAX_SINGLE_ALLOCATION)
+	{
+		errno = ENOMEM;
+		perror( __FILE__ " -- LFQ max single heap allocation can not be larger than 64KB ");
+		exit( EXIT_FAILURE  );
+	}
+	void * p = calloc(1, sz);
+	if (! p )
+	{
+		perror(__FILE__ " -- LFQ heap allocation failed ");
+		exit(EXIT_FAILURE);
+	}
+	return p;
+#endif /* NDEBUG */
 }
 static inline void _lfqueue_free(void* pl, void* ptr) {
 	free(ptr);
