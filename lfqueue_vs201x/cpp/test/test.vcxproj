@@ -19,9 +19,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\lfqueue.c" />
     <ClCompile Include="..\test.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\lfqueue.h" />
     <ClInclude Include="..\test.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

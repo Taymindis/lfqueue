@@ -18,9 +18,15 @@
     <ClCompile Include="..\test.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\lfqueue.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\test.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\lfqueue.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
