@@ -409,6 +409,4 @@ lfqueue_sleep(unsigned int milisec) {
 #endif
 }
 
-#ifdef __cplusplus
-}
-#endif
+/* EOF */
