@@ -45,7 +45,11 @@
 
 #else /* NOT defined __GNUC__ || defined __CYGWIN__ || defined __MINGW32__ || defined __APPLE__ */
 
+#define VC_EXTRALEAN
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <Windows.h>
+
 #include <time.h>
 #ifdef _WIN64
 inline BOOL __SYNC_BOOL_CAS(LONG64 volatile *dest, LONG64 input, LONG64 comparand) {
@@ -77,7 +81,7 @@ inline BOOL __SYNC_BOOL_CAS(LONG volatile *dest, LONG input, LONG comparand) {
 
 #endif /* NOT _WIN64 */
 
-#include <windows.h>
+// #include <windows.h>
 #define __LFQ_YIELD_THREAD SwitchToThread
 
 #endif /* defined __GNUC__ || defined __CYGWIN__ || defined __MINGW32__ || defined __APPLE__ */
