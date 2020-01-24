@@ -118,7 +118,7 @@ namespace LFQ_NAMESPACE {
 
 
 #ifdef __cplusplus
-	}
+	} // extern "C"
 } // namespace LFQ_NAMESPACE 
 #endif
 
