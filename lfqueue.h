@@ -50,7 +50,7 @@
 #define LFQ_UNIX
 // ...
 #else
-#error Unknown runtime 
+#error Unknown runtime
 #endif
 
 #ifdef NDEBUG
@@ -58,7 +58,7 @@
 #define LFQ_RELEASE
 #else
 #define LFQ_BUILD "DEBUG"
-#undef LFQ_RELEASE
+#undef LFQ_DEBUG
 #endif
 
 /*----------------------------------------------------------------------------------------------*/
@@ -69,17 +69,24 @@
 #define LFQ_NAMESPACE lf_queue
 
 #ifdef __cplusplus
-namespace LFQ_NAMESPACE {
-	extern "C" {
+namespace LFQ_NAMESPACE
+{
+extern "C"
+{
 #endif
 
-		/*----------------------------------------------------------------------------------------------*/
-		typedef enum {major = 1, minor = 3, patch = 0 } VERSION ;
-		/*----------------------------------------------------------------------------------------------*/
+	/*----------------------------------------------------------------------------------------------*/
+	typedef enum
+	{
+		major = 1,
+		minor = 3,
+		patch = 0
+	} VERSION;
+	/*----------------------------------------------------------------------------------------------*/
 
-		typedef struct lfqueue_cas_node_s lfqueue_cas_node_t;
-		typedef void* (*lfqueue_malloc_fn)(void*, size_t);
-		typedef void (*lfqueue_free_fn)(void*, void*);
+	typedef struct lfqueue_cas_node_s lfqueue_cas_node_t;
+	typedef void *(*lfqueue_malloc_fn)(void *, size_t);
+	typedef void (*lfqueue_free_fn)(void *, void *);
 
 #if defined __GNUC__ || defined __CYGWIN__ || defined __MINGW32__ || defined __APPLE__
 #define lfq_bool_t int
@@ -91,36 +98,35 @@ namespace LFQ_NAMESPACE {
 #endif
 #endif
 
-		typedef struct {
-			lfqueue_cas_node_t* head, * tail, * root_free, * move_free;
-			volatile size_t size;
-			volatile lfq_bool_t in_free_mode;
-			lfqueue_malloc_fn _malloc;
-			lfqueue_free_fn _free;
-			void* pl;
-		} lfqueue_t;
+	typedef struct
+	{
+		lfqueue_cas_node_t *head, *tail, *root_free, *move_free;
+		volatile size_t size;
+		volatile lfq_bool_t in_free_mode;
+		lfqueue_malloc_fn _malloc;
+		lfqueue_free_fn _free;
+		void *pl;
+	} lfqueue_t;
 
-		/*----------------------------------------------------------------------------------------------*/
+	/*----------------------------------------------------------------------------------------------*/
 
-		extern int   lfqueue_init(lfqueue_t* lfqueue);
-		extern int   lfqueue_init_mf(lfqueue_t* lfqueue, void* pl, lfqueue_malloc_fn lfqueue_malloc, lfqueue_free_fn lfqueue_free);
-		extern int   lfqueue_enq(lfqueue_t* lfqueue, void* value);
-		extern void* lfqueue_deq(lfqueue_t* lfqueue);
-		extern void* lfqueue_single_deq(lfqueue_t* lfqueue);
+	extern int lfqueue_init(lfqueue_t *lfqueue);
+	extern int lfqueue_init_mf(lfqueue_t *lfqueue, void *pl, lfqueue_malloc_fn lfqueue_malloc, lfqueue_free_fn lfqueue_free);
+	extern int lfqueue_enq(lfqueue_t *lfqueue, void *value);
+	extern void *lfqueue_deq(lfqueue_t *lfqueue);
+	extern void *lfqueue_single_deq(lfqueue_t *lfqueue);
 
-		/** loop until value been dequeue, it sleeps 1ms if not found to reduce cpu high usage **/
-		extern void* lfqueue_deq_must(lfqueue_t* lfqueue);
-		extern void* lfqueue_single_deq_must(lfqueue_t* lfqueue);
+	/** loop until value been dequeue, it sleeps 1ms if not found to reduce cpu high usage **/
+	extern void *lfqueue_deq_must(lfqueue_t *lfqueue);
+	extern void *lfqueue_single_deq_must(lfqueue_t *lfqueue);
 
-		extern void lfqueue_destroy(lfqueue_t* lfqueue);
-		extern size_t lfqueue_size(lfqueue_t* lfqueue);
-		extern void lfqueue_sleep(unsigned int milisec);
-
+	extern void lfqueue_destroy(lfqueue_t *lfqueue);
+	extern size_t lfqueue_size(lfqueue_t *lfqueue);
+	extern void lfqueue_sleep(unsigned int milisec);
 
 #ifdef __cplusplus
-	} // extern "C"
-} // namespace LFQ_NAMESPACE 
+} // extern "C"
+} // namespace LFQ_NAMESPACE
 #endif
 
 #endif /* LFQUEUE_H */
-
