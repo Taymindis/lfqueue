@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "intelliSenseMode": "msvc-x64",
+            "compilerPath": "D:\\PROD\\programs\\vs2019ide\\VC\\Tools\\MSVC\\14.24.28314\bin\\Hostx86\\x86\\cl.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "windowsSdkVersion": "10.0.17763.0",
+            "includePath": [
+                "D:\\PROD\\programs\\vs2019ide\\VC\\Tools\\MSVC\\14.24.28314\\include",
+                "D:\\Windows Kits\\10\\Include\\10.0.18362.0\\ucrt",
+                "D:\\Windows Kits\\10\\Include\\10.0.18362.0\\um",
+                "D:\\Windows Kits\\10\\Include\\10.0.18362.0\\shared"
+            ]
+        }
+    ],
+    "version": 4
+}

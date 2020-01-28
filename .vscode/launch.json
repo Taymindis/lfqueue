@@ -1,0 +1,27 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "win Launch",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/sample/win/example_wins_dbg.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/sample/win",
+            "environment": [],
+            "externalConsole": false
+        },
+        {
+            "name": "cpp Launch",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/sample/cpp/dbj_coroutines_dbg.exe",
+            "args": [],
+            "stopAtEntry": true,
+            "cwd": "${workspaceFolder}/sample/cpp",
+            "environment": [],
+            "externalConsole": false
+        }
+    ]
+}
