@@ -1,6 +1,9 @@
 
-@rem of course start from msvc developer cmd
+@rem of course start the visual code from msvc developer cmd
 @rem debug build -- /Zi
 @rem /std:c++17
 @rem  /await 
-cl  /EHsc /Zi /Fe: example_wins_dbg.exe example_wins.c ../../lfqueue.c
+
+@rem exe name has to match the one used in .vscode/launch.json
+
+cl  /EHsc /Zi /Fe: windows_sample_dbg.exe windows_sample.c ../../lfqueue.c

@@ -16,7 +16,7 @@
             "name": "cpp Launch",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/sample/cpp/dbj_coroutines_dbg.exe",
+            "program": "${workspaceFolder}/sample/cpp/cppsample_dbg.exe",
             "args": [],
             "stopAtEntry": true,
             "cwd": "${workspaceFolder}/sample/cpp",

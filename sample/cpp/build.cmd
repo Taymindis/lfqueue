@@ -1,5 +1,5 @@
 
-@rem of course start from msvc developer cmd
-@rem debug build -- /Zi
+@rem of course Windows VCode has to start from msvc developer cmd
+@rem debug build on/off -- include/exclude argument -- /Zi
 
-cl  /std:c++17 /await /EHsc /Zi /Fe: dbj_coroutines_dbg.exe dbj_coroutines.cpp
+cl  /std:c++17 /await /EHsc /Zi /Fe: cppsample_dbg.exe cppsample.cpp ../../lfqueue.c
