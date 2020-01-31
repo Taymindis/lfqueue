@@ -1,5 +1,6 @@
 
 @echo off
+@cls
 @rem of course Windows VCode has to start from msvc developer cmd
 @rem debug build on/off -- include/exclude argument -- /Zi
 @rem for /d2FH4 see https://devblogs.microsoft.com/cppblog/making-cpp-exception-handling-smaller-x64/
@@ -38,5 +39,4 @@ goto EXIT
 @goto DEBUG
 goto EXIT
 :EXIT
-@cls
 @dir /D
