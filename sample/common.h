@@ -112,7 +112,10 @@ extern "C"
         assert(vp_);
         assert(origin_.val);
         char *pn_ = (char *)vp_;
+#ifdef COMMON_TRACING
         printf("\n%16s [%16s] has started", origin_.val, pn_);
+        printf(" in thread [%6d]", (int)GetCurrentThreadId());
+#endif
         fflush(0);
         synchro_leave();
         return pn_;
