@@ -39,7 +39,7 @@ unsigned __stdcall producer(void *arg)
 		// perror("Q FULL for ?\n");
 		lfqueue_sleep(1);
 	}
-	free_name_(name_);
+	// NO! --> free_name_(name_);
 	lfqueue_sleep(1);
 	return 0;
 }
@@ -60,7 +60,7 @@ unsigned __stdcall consumer(void *arg)
 
 		if (message_)
 		{
-			printf("\nConsumer has received: [%s]", message_);
+			printf("\rConsumer has received: %-55s", message_);
 			free_name_(message_);
 		}
 		else
@@ -90,7 +90,7 @@ int main(int argc, char **argv)
 		/* the threads */
 		HANDLE threads[MAX_THREADS] = {0};
 
-		unsigned consumer_thread_idx_ = 0;
+		unsigned consumer_thread_idx_ = MAX_THREADS + 100;
 
 		HANDLE consumer_thread = (HANDLE)_beginthreadex(
 			NULL, 0, consumer,
@@ -113,7 +113,7 @@ int main(int argc, char **argv)
 		/// resume the single consumer
 		ResumeThread(consumer_thread);
 		/// wait 5 seconds for consumer
-		WaitForSingleObject(consumer_thread, 1000 * 5 /* 5 seconds */);
+		WaitForSingleObject(consumer_thread, 1000 /* 1 second */);
 		/// shutdown consumer thread
 		CloseHandle(consumer_thread);
 
@@ -137,7 +137,7 @@ int main(int argc, char **argv)
 
 	lfqueue_destroy(&the_queue);
 
-	printf("\nDone, hit any key you choose to hit today ... ");
+	printf("\nDone, hit any key you choose to hit today ... \n");
 	fflush(0);
 	getch();
 
