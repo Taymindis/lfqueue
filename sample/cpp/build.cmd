@@ -2,6 +2,8 @@
 @echo off
 @rem of course Windows VCode has to start from msvc developer cmd
 @rem debug build on/off -- include/exclude argument -- /Zi
+@rem for /d2FH4 see https://devblogs.microsoft.com/cppblog/making-cpp-exception-handling-smaller-x64/
+@rem
 
 if "%~1"=="R" goto RELEASE
 if "%~1"=="r" goto RELEASE
@@ -21,7 +23,7 @@ goto EXIT
 @echo.
 @echo Building for RELEASE -- no exceptions and DLL runtime
 @echo.
-cl  /std:c++17 /MD -D_HAS_EXCEPTIONS=0 /Fe: cppsample_dbg.exe cppsample.cpp ../../lfqueue.c
+cl  /std:c++17 /MD -D_HAS_EXCEPTIONS=0 /Fe: cppsample.exe cppsample.cpp ../../lfqueue.c
 goto EXIT
 :HELP
 @cls
