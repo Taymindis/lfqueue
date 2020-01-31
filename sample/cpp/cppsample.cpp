@@ -1,8 +1,11 @@
 
 /// MSVC, C++17
-/// one consumer, 1..N producers
-
-#include <thread>
+/// one consumer, 1..N futures
+/// it is important to realize things are NOT happening in-order
+/// in multi-threading apps.
+/// For example single consumer bellow might start before
+/// any of the futures
+/// the key in makin things the way you want, is synchronization
 #include <future>
 #include <vector>
 #include <cstdio>
@@ -10,31 +13,30 @@
 #include "../common.h"     // namespace common
 
 using namespace std;
-#define MAX_PRODUCER_THREADS 2U
 using namespace common;
 using namespace ::lf_queue;
 using namespace std::chrono_literals;
+#define MAX_PRODUCER_THREADS 255U
 
-/// Prototypes
+/// if required Prototype CloseHandle()
+/// instead of including the whole windows.h for this one function
 /// __declspec(dllimport)
 /// extern "C" __declspec(dllimport) int __stdcall CloseHandle(void *hObject);
 /// #pragma comment(lib, "Kernel32.lib")
 ///--------------------------------------------------
 static lf_queue::lfqueue_t the_queue;
 
-using producers_sequence = vector<future<void>>;
+using futures_sequence = vector<future<void>>;
 ///--------------------------------------------------
 void __stdcall producer(unsigned producer_threads_count)
 {
     using namespace common;
     using namespace ::lf_queue;
-    // not how we take the copy not the reference
     /* using C API provokes cludges */
     char buf[3] = {0};
     snprintf(buf, 3, "%d", producer_threads_count);
     /* 1: returns first arg cast to char*, does *not* allocate anything  */
     char *name_ = print_name_((void *)buf, {"Producer"});
-    printf(" in thread %d\n", (int)GetCurrentThreadId());
     /* 2: make the message to be sent */
     char *message_ = make_message_(name_);
     /* 3: Enqueue, consumer is responsible freeing the message	*/
@@ -43,6 +45,7 @@ void __stdcall producer(unsigned producer_threads_count)
         this_thread::yield();
     }
     // producer sends one message and exits
+    // but before doing so it give other threads a bit more time
     this_thread::yield();
 }
 
@@ -55,7 +58,6 @@ void __stdcall consumer()
     /* using C API provokes cludges */
     /* 1: returns arg cast to char*, does not allocate anything  */
     char *name_ = print_name_((void *)consumer_id_, {"Consumer"});
-    printf(" from thread %d\n", (int)GetCurrentThreadId());
     unsigned number_of_messages_received = 0;
     // we will loop forever if this is required
     while (true)
@@ -67,15 +69,14 @@ void __stdcall consumer()
 
         if (message_)
         {
-            printf("\nConsumer has received: [%s]", message_);
             /* made on the heap by producer, must free it */
             free_name_(message_);
 
             // Here we decide what is the exiting criteria for the consumer
-            // for example a special (aka control) message
-            // our logic here is very simple, we exit when number
-            // of messages equals the number of prodcers threads
-            // each of them send a single message and exits
+            // for example a special (aka control) message?
+            // Our logic here is very simple, we exit when number
+            // of messages equals the number of futures threads
+            // each of them sends a single message and exits
             if (++number_of_messages_received == MAX_PRODUCER_THREADS)
             {
                 printf("\nConsumer has recieved %d messages from %d senders, it is exiting\n",
@@ -87,35 +88,8 @@ void __stdcall consumer()
         {
             printf("\nConsumer should not be here..");
         }
-        //                this_thread::sleep_for(1ns); // 1 nano seconds
     }
     fflush(0);
-}
-///--------------------------------------------------
-int worker(int, char **);
-int main(int argc, char **argv)
-{
-    try
-    {
-        worker(argc, argv);
-    }
-    catch (std::future_error const &err)
-    {
-        printf("\nstd future_error: %s", err.what());
-    }
-    catch (std::system_error &syserr_)
-    {
-        printf("\nstd exception: %s", syserr_.what());
-    }
-    catch (std::exception &ex_)
-    {
-        printf("\nstd exception: %s", ex_.what());
-    }
-    catch (...)
-    {
-        printf("\nUnknown exception");
-    }
-    return EXIT_SUCCESS;
 }
 ///--------------------------------------------------
 static int worker(int, char **)
@@ -129,58 +103,35 @@ static int worker(int, char **)
 
     unsigned producer_threads_count = MAX_PRODUCER_THREADS;
 
-    producers_sequence producers{0};
-    /// it is important to realize things are NOT happening in-order
-    /// in multi-threading apps.
-    /// For example single consumer bellow might start before
-    /// any of the producers
-    /// the key in makin things the way you want, is synchronization
+    futures_sequence futures{0};
+
     do
     {
-        producers.push_back(std::async(producer, producer_threads_count));
+        futures.push_back(std::async(producer, producer_threads_count));
     } while (--producer_threads_count);
 
-    /// a single consumer
-    thread consumerT{consumer}; // consumer ctor
+    /// a single consumer is added last
+    /// NOTE: that does not guarantee it will start last
+    futures.push_back(std::async(consumer));
 
-    /// IF we want consumer thread to be 'detached'
-    /// thus we will keep it's handle so we can close
-    /// it in a controlled manner later on
-    /// std::thread::native_handle_type
-
-    // auto consumer_handle = consumer.native_handle();
-    consumerT.detach();
-    /*
-    After this "just leave it" .. do not join 
-    or close handle!
-    */
-
-    // printf("\nMain thread sleeping for 5 seconds...");
-    // using namespace std::chrono_literals;
-    // this_thread::sleep_for(5s);
-
-    printf("\n\n");
+    printf("\n");
     fflush(0);
-    /// join and stop the producers
+    /// wait for all the futures
     unsigned count_ = 1;
-    for (auto &fut_ : producers)
+    for (auto &fut_ : futures)
     {
-        printf("\rWaiting for producer %3d future", count_++);
+    again:
         if (fut_.valid())
             fut_.wait();
-        this_thread::yield();
+        else
+        {
+            /// you never know ...
+            printf("\rWaiting for the future %3d, hit CTRL+C if app is stuck here", count_++);
+            /// give them some time
+            this_thread::yield();
+            goto again;
+        }
     }
-
-    /// will throw the exception if not joinable
-    // while (!consumer.joinable())
-    // {
-    //     printf("\rWaiting for consumer to become joinable...");
-    //     this_thread::yield();
-    // }
-    // printf("\nConsumer is joining...");
-    // consumer.join();
-    /// this shuts down the consumer thread
-    // CloseHandle(consumer_handle);
 
     fflush(0);
     while (0 != lfqueue_size(&the_queue))
@@ -193,3 +144,34 @@ static int worker(int, char **)
     fflush(0);
     return EXIT_SUCCESS;
 } // worker
+///--------------------------------------------------
+/// we can build with or without exceptions enabled
+///
+int main(int argc, char **argv)
+{
+#if _HAS_EXCEPTIONS
+    try
+    {
+#endif // _HAS_EXCEPTIONS
+        return worker(argc, argv);
+#if _HAS_EXCEPTIONS
+    }
+    catch (std::future_error const &err)
+    {
+        printf("\nstd future_error: %s", err.what());
+    }
+    catch (std::system_error &syserr_)
+    {
+        printf("\nstd system_error: %s", syserr_.what());
+    }
+    catch (std::exception &ex_)
+    {
+        printf("\nstd exception: %s", ex_.what());
+    }
+    catch (...)
+    {
+        printf("\nUnknown exception");
+    }
+#endif // _HAS_EXCEPTIONS
+    return EXIT_SUCCESS;
+}
