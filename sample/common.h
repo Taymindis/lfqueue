@@ -56,9 +56,9 @@ extern "C"
     void synchro_enter() { EnterCriticalSection(&common_initor()->crit_sect); }
     void synchro_leave() { LeaveCriticalSection(&common_initor()->crit_sect); }
 
-    /// origin is a "strong type" (c) 2019 dbj@dbj.org
+    /// Common_Origin is a "strong type" (c) 2019 dbj@dbj.org
     ///
-    /// void fun(origin);
+    /// void fun(Common_Origin);
     ///
     /// is infinitely better than
     ///
@@ -66,7 +66,7 @@ extern "C"
     ///
     /// calling is even better
     ///
-    /// fun((origin){"Producer"});
+    /// fun((Common_Origin){"Producer"});
     ///
     /// almost like named argument, but not, because
     /// the name required is a type
@@ -76,66 +76,85 @@ extern "C"
     /// C++
     /// fun({"Producer"}); // what is the type passed?
     ///
-    typedef struct origin_tag
+    typedef struct
     {
         const char *val;
-    } origin;
+    } Common_Origin;
+
+#define Common_Name_Length 0xFF
+    typedef struct
+    {
+        char val[Common_Name_Length];
+    } Common_Name;
+
+    typedef struct
+    {
+        unsigned val;
+    } Common_Id;
+
     /// --------------------------------------------------------------------------------------------
     /// one can pass objects on stack to threads, but stack is shared by default between threads
     /// so for clear confusion free thread to thread messaging use heap
 
     /// we always `name` the threads by sending them this through
     /// _beginthreadex() call, as the fourth argument
-    inline char *make_name_(unsigned id_, origin origin_)
+    inline Common_Name make_name_(Common_Id id_, Common_Origin origin_)
     {
         synchro_enter();
         assert(origin_.val);
-        char *retval = (char *)calloc(0xF, sizeof(char));
-        assert(retval);
-        int count = snprintf(retval, 0xF, "%s: %3d", origin_.val, id_);
+        Common_Name retval = {{0}};
+        int count = snprintf(retval.val, Common_Name_Length, "%s: %3d", origin_.val, id_.val);
         assert(!(count < 0));
         synchro_leave();
         return retval;
     }
-    inline void free_name_(char *pn_)
+    inline void free_name_(Common_Name name_)
     {
         synchro_enter();
-        free(pn_);
-        pn_ = 0;
+        memset(name_.val, 0, Common_Name_Length);
         synchro_leave();
     }
     /// we can not tell if vp_ is coming from a heap
     /// or from a stack
-    inline char *print_name_(void *vp_, origin origin_)
+//     inline char *print_name_(void *vp_, Common_Origin origin_)
+//     {
+//         synchro_enter();
+//         assert(vp_);
+//         assert(origin_.val);
+//         char *pn_ = (char *)vp_;
+// #ifdef COMMON_TRACING
+//         printf("\n%16s [%16s] has started", origin_.val, pn_);
+//         printf(" in thread [%6d]", (int)GetCurrentThreadId());
+//         fflush(0);
+// #endif
+//         synchro_leave();
+//         return pn_;
+//     }
+    /// -----------------------------------------------------------------------------
+#define Common_Message_Length 0xFF
+    typedef struct
+    {
+        char val[Common_Message_Length];
+    } Common_Message;
+
+    /// make message on the heap
+    /// for sane inter threading
+    inline Common_Message *make_message_(Common_Origin origin_)
     {
         synchro_enter();
-        assert(vp_);
         assert(origin_.val);
-        char *pn_ = (char *)vp_;
-#ifdef COMMON_TRACING
-        printf("\n%16s [%16s] has started", origin_.val, pn_);
-        printf(" in thread [%6d]", (int)GetCurrentThreadId());
-#endif
-        fflush(0);
-        synchro_leave();
-        return pn_;
-    }
-    inline char *make_message_(char *producer_name_)
-    {
-        synchro_enter();
-        assert(producer_name_);
-        char *retval = (char *)calloc(0xFF, sizeof(char));
+        Common_Message *retval =
+            (Common_Message *)calloc(1, sizeof(Common_Message));
         assert(retval);
-        int count = snprintf(retval, 0xFF, "Message from: %s", producer_name_);
+        int count = snprintf(retval->val, Common_Message_Length, "Message from: %s", origin_.val);
         assert(!(count < 0));
         synchro_leave();
         return retval;
     }
-    inline void free_message_(char *pn_)
+    inline void free_message_(Common_Message *msg_)
     {
         synchro_enter();
-        free(pn_);
-        pn_ = 0;
+        free(msg_);
         synchro_leave();
     }
 
