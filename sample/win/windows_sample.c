@@ -27,10 +27,9 @@ static const int total_put = 50000;
 unsigned __stdcall producer(void *);
 unsigned __stdcall producer(void *arg)
 {
-	/* print to terminal window */
-	char *name_ = print_name_(arg, (origin){""});
+char * name_arg = (char *)arg;
 	/* make the message to be sent */
-	char *message_ = make_message_(name_);
+	Common_Message *message_ = make_message_((Common_Origin){name_arg});
 	/*
 	Enqueue, consumer is responsible freeing the message
 	*/
@@ -45,32 +44,32 @@ unsigned __stdcall producer(void *arg)
 }
 /// --------------------------------------------------------------------------------------------
 /// running "for ever" in his thread
+/// name is coming as argument
 unsigned __stdcall consumer(void *);
 unsigned __stdcall consumer(void *arg)
 {
-	/* print to terminal window */
-	char *name_ = print_name_(arg, (origin){"Consumer"});
+printf("\nStarted: %s",  (char*)arg );
 
-	while (1)
-	{
-		/*Dequeue
+while (1)
+{
+	/*Dequeue
 		This call is only applicable when a single thread consumes messages 
 		*/
-		char *message_ = lfqueue_single_deq_must(&the_queue);
+	Common_Message *message_ = lfqueue_single_deq_must(&the_queue);
 
-		if (message_)
-		{
-			printf("\rConsumer has received: %-55s", message_);
-			free_name_(message_);
-		}
-		else
-		{
-			printf("\nConsumer should not be here..");
-		}
-		fflush(0);
-		lfqueue_sleep(1);
+	if (message_)
+	{
+		printf("\nConsumer has received: %-55s", message_->val);
+		free_message_(message_);
 	}
-	return 0;
+	else
+	{
+		printf("\nConsumer should not be here..");
+	}
+	fflush(0);
+	lfqueue_sleep(1);
+}
+return 0;
 }
 
 /*----------------------------------------------------------------------------------------------*/
@@ -95,7 +94,10 @@ int main(int argc, char **argv)
 		HANDLE consumer_thread = (HANDLE)_beginthreadex(
 			NULL, 0, consumer,
 			/* thread data is the name we generate for it */
-			make_name_(consumer_thread_idx_, (origin){"Consumer"}),
+			make_name_(
+				(Common_Id){consumer_thread_idx_},
+				(Common_Origin){"Consumer"})
+				.val,
 			CREATE_SUSPENDED, NULL);
 
 		/* begin producers, each on a separate thread */
@@ -105,7 +107,9 @@ int main(int argc, char **argv)
 			threads[i] = (HANDLE)_beginthreadex(
 				NULL, 0, producer,
 				/* thread data is the name we generate for it */
-				make_name_(i, (origin){"Producer"}),
+				make_name_(
+					(Common_Id){i}, (Common_Origin){"Producer"})
+					.val,
 				0, NULL);
 			i++;
 		} while (i < MAX_THREADS);

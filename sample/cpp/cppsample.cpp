@@ -33,12 +33,12 @@ void __stdcall producer(unsigned producer_threads_count)
     using namespace common;
     using namespace ::lf_queue;
     /* using C API provokes cludges */
-    char buf[3] = {0};
-    snprintf(buf, 3, "%d", producer_threads_count);
+    //char buf[3] = {0};
+    //snprintf(buf, 3, "%d", producer_threads_count);
     /* 1: returns first arg cast to char*, does *not* allocate anything  */
-    char *name_ = print_name_((void *)buf, {"Producer"});
+    Common_Name name_ = make_name_({producer_threads_count}, {"Producer"});
     /* 2: make the message to be sent */
-    char *message_ = make_message_(name_);
+    Common_Message * message_ = make_message_({name_.val});
     /* 3: Enqueue, consumer is responsible freeing the message	*/
     while (lfqueue_enq(&the_queue, message_))
     {
@@ -57,7 +57,7 @@ void __stdcall consumer()
     const char *consumer_id_ = "99";
     /* using C API provokes cludges */
     /* 1: returns arg cast to char*, does not allocate anything  */
-    char *name_ = print_name_((void *)consumer_id_, {"Consumer"});
+    Common_Name name_ = make_name_({99}, {"Consumer"});
     unsigned number_of_messages_received = 0;
     // we will loop forever if this is required
     while (true)
@@ -65,12 +65,13 @@ void __stdcall consumer()
         this_thread::yield();
 
         /*Dequeue -- This call is only applicable when a single thread consumes messages */
-        char *message_ = (char *)lfqueue_single_deq_must(&the_queue);
+        Common_Message *message_ = 
+        (Common_Message *)lfqueue_single_deq_must(&the_queue);
 
         if (message_)
         {
             /* made on the heap by producer, must free it */
-            free_name_(message_);
+            free_message_(message_);
 
             // Here we decide what is the exiting criteria for the consumer
             // for example a special (aka control) message?
@@ -144,6 +145,7 @@ static int worker(int, char **)
     fflush(0);
     return EXIT_SUCCESS;
 } // worker
+
 ///--------------------------------------------------
 /// we can build with or without exceptions enabled
 ///
