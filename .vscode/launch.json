@@ -5,7 +5,7 @@
             "name": "win Launch",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/sample/win/example_wins_dbg.exe",
+            "program": "${workspaceFolder}/sample/win/windows_sample_dbg.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/sample/win",
