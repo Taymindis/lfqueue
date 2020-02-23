@@ -32,9 +32,6 @@ void __stdcall producer(unsigned producer_threads_count)
 {
     using namespace common;
     using namespace ::lf_queue;
-    /* using C API provokes cludges */
-    //char buf[3] = {0};
-    //snprintf(buf, 3, "%d", producer_threads_count);
     /* 1: returns first arg cast to char*, does *not* allocate anything  */
     Common_Name name_ = make_name_({producer_threads_count}, {"Producer"});
     /* 2: make the message to be sent */
@@ -45,7 +42,7 @@ void __stdcall producer(unsigned producer_threads_count)
         this_thread::yield();
     }
     // producer sends one message and exits
-    // but before doing so it give other threads a bit more time
+    // but before doing so it gives other threads a bit of time
     this_thread::yield();
 }
 
