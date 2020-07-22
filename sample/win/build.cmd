@@ -18,13 +18,13 @@ goto HELP
 @echo.
 @echo Building for DEBUG -- no exceptions + runtime DLL
 @echo.
-cl  /std:c++17 /MDd -D_HAS_EXCEPTIONS=0 /Zi /Fe: windows_sample_dbg.exe windows_sample.c ../../lfqueue.c
+cl  /MDd -D_HAS_EXCEPTIONS=0 /Zi /Fe: windows_sample_dbg.exe windows_sample.c ../../lfqueue.c
 goto EXIT
 :RELEASE
 @echo.
 @echo Building for RELEASE -- no exceptions and DLL runtime
 @echo.
-cl  /std:c++17 /MD -D_HAS_EXCEPTIONS=0 /Fe: windows_sample.exe windows_sample.c ../../lfqueue.c
+cl  /MD -D_HAS_EXCEPTIONS=0 /Fe: windows_sample.exe windows_sample.c ../../lfqueue.c
 goto EXIT
 :HELP
 @cls
