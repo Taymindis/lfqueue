@@ -8,10 +8,10 @@
                 "_UNICODE"
             ],
             "intelliSenseMode": "msvc-x64",
-            "compilerPath": "D:\\PROD\\programs\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.26.28801\bin\\Hostx64\\x64\\cl.exe",
+            "compilerPath": "D:\\PROD\\programs\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.26.28801\\bin\\Hostx64\\x64\\cl.exe",
             "cStandard": "c11",
             "cppStandard": "c++17",
-            "windowsSdkVersion": "10.0.17763.0",
+            "windowsSdkVersion": "10.0.18362.0",
             "includePath": [
                 "D:\\PROD\\programs\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.26.28801\\include",
                 "D:\\Windows Kits\\10\\Include\\10.0.18362.0\\ucrt",

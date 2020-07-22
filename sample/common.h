@@ -1,6 +1,7 @@
 #pragma once
 /*
 common to all samples
+using WIN32 API
 */
 
 #include <stdlib.h>
@@ -20,8 +21,8 @@ extern "C"
 #endif
 
     /// --------------------------------------------------------------------------------------------
-    /// we need to make coomon function work in presence of multiple threads
-    typedef struct
+    /// we need to make common function work in presence of multiple threads
+    typedef struct synchro_struct
     {
         bool initalized;
         CRITICAL_SECTION crit_sect;
@@ -29,7 +30,7 @@ extern "C"
 
     void exit_common(void);
 
-    inline synchro_type *common_initor()
+    static inline synchro_type *common_initor()
     {
         static synchro_type synchro_ = {false};
         if (!synchro_.initalized)
@@ -42,7 +43,7 @@ extern "C"
         return &synchro_;
     }
 
-    void exit_common(void)
+    static inline void exit_common(void)
     {
         synchro_type crit_ = *common_initor();
 
@@ -53,8 +54,8 @@ extern "C"
         }
     }
 
-    void synchro_enter() { EnterCriticalSection(&common_initor()->crit_sect); }
-    void synchro_leave() { LeaveCriticalSection(&common_initor()->crit_sect); }
+    static inline void synchro_enter() { EnterCriticalSection(&common_initor()->crit_sect); }
+    static inline void synchro_leave() { LeaveCriticalSection(&common_initor()->crit_sect); }
 
     /// Common_Origin is a "strong type" (c) 2019 dbj@dbj.org
     ///
