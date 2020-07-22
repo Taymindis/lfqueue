@@ -18,6 +18,22 @@
                 "D:\\Windows Kits\\10\\Include\\10.0.18362.0\\um",
                 "D:\\Windows Kits\\10\\Include\\10.0.18362.0\\shared"
             ]
+        },
+        {
+            "name": "CLANG",
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "intelliSenseMode": "msvc-x64",
+            "compilerPath": "D:\\PROD\\programs\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\Llvm\\bin\\clang.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "windowsSdkVersion": "10.0.18362.0",
+            "includePath": [
+                "D:\\PROD\\programs\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\Llvm\\lib\\clang\\10.0.0\\include"
+            ]
         }
     ],
     "version": 4
