@@ -2,17 +2,17 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "msvc debug build",
+            "label": "C win32 debug",
             "type": "shell",
             "command": "cl.exe",
             "args": [
-                "/std:c++17",
-                "/await",
+                "/Fo${workspaceFolder}\\sample\\win\\",
                 "/EHsc",
                 "/Zi",
                 "/Fe:",
-                "dbj_coroutines_dbg.exe",
-                ".doc/dbj_coroutines.cpp"
+                "${workspaceFolder}/sample/win/windows_sample_dbg.exe",
+                "${workspaceFolder}/sample/win/windows_sample.c",
+                "${workspaceFolder}/lfqueue.c"
             ],
             "group": {
                 "kind": "build",
@@ -24,16 +24,17 @@
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "msvc release build",
+            "label": "C win32 release",
             "type": "shell",
             "command": "cl.exe",
             "args": [
-                "/std:c++17",
-                "/await",
+                "/Fo${workspaceFolder}\\sample\\win\\",
+                "/O2",
                 "/EHsc",
                 "/Fe:",
-                "dbj_coroutines.exe",
-                ".doc/dbj_coroutines.cpp"
+                "${workspaceFolder}/sample/win/windows_sample.exe",
+                "${workspaceFolder}/sample/win/windows_sample.c",
+                "${workspaceFolder}/lfqueue.c"
             ],
             "group": {
                 "kind": "build",
