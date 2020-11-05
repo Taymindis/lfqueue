@@ -1,0 +1,74 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "CLANG C win32 debug",
+            "type": "shell",
+            "command": "D:\\PROD\\programs\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\Llvm\\bin\\clang.exe",
+            "args": [
+                "-D_HAS_EXCEPTIONS=0",
+                "-g",
+                "${workspaceFolder}/sample/win/windows_sample.c",
+                "${workspaceFolder}/lfqueue.c",
+                "-o",
+                "${workspaceFolder}/sample/win/windows_sample.exe"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always"
+            },
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "C win32 debug",
+            "type": "shell",
+            "command": "cl.exe",
+            "args": [
+                "/MDd",
+                "/kernel",
+                "-D_HAS_EXCEPTIONS=0",
+                "/Fo${workspaceFolder}\\sample\\win\\",
+                "/Zi",
+                "/Fe:",
+                "${workspaceFolder}/sample/win/windows_sample_dbg.exe",
+                "${workspaceFolder}/sample/win/windows_sample.c",
+                "${workspaceFolder}/lfqueue.c"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always"
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "C win32 release",
+            "type": "shell",
+            "command": "cl.exe",
+            "args": [
+                "/MD",
+                "/kernel",
+                "-D_HAS_EXCEPTIONS=0",
+                "/Fo${workspaceFolder}\\sample\\win\\",
+                "/O2",
+                "/Fe:",
+                "${workspaceFolder}/sample/win/windows_sample.exe",
+                "${workspaceFolder}/sample/win/windows_sample.c",
+                "${workspaceFolder}/lfqueue.c"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always"
+            },
+            "problemMatcher": "$msCompile"
+        }
+    ]
+}
